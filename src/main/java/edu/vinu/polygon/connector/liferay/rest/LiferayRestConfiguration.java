@@ -13,14 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.evolveum.polygon.connector.example.rest;
+package edu.vinu.polygon.connector.liferay.rest;
 
-import com.evolveum.polygon.rest.AbstractRestConfiguration;
+import edu.vinu.polygon.connector.liferay.rest.AbstractRestConfiguration;
+import org.identityconnectors.framework.spi.ConfigurationProperty;
 
 /**
- * @author semancik
+ * @author Justin Stanczak
  *
  */
-public class ExampleRestConfiguration extends AbstractRestConfiguration {
+public class LiferayRestConfiguration extends AbstractRestConfiguration {
+
+  private String companyId;
+
+  @ConfigurationProperty(displayMessageKey = "rest.config.companyId", helpMessageKey = "rest.config.companyId.help")
+  public String getCompanyId() {
+        return companyId;
+    }
+
+    public void setCompanyId(String companyId) {
+        this.companyId = companyId;
+    }
 
 }

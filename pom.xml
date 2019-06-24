@@ -22,19 +22,49 @@
     <parent>
         <artifactId>connector-parent</artifactId>
         <groupId>com.evolveum.polygon</groupId>
-        <version>1.4.2.14</version>
+        <version>1.4.2.35</version>
         <relativePath></relativePath>
     </parent>
 
-    <artifactId>connector-rest-example</artifactId>
-    <version>1.4.2.14-SNAPSHOT</version>
+    <artifactId>connector-liferay</artifactId>
+    <version>1.0</version>
     <packaging>jar</packaging>
 
-    <name>Example REST Connector</name>
+    <name>Liferay REST Connector</name>
+
+    <description>Liferay Rest connector for Midpoint.</description>
+
+    <url>https://www.vinu.edu</url>
+
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <inceptionYear>2019</inceptionYear>
+
+    <developers>
+        <developer>
+            <id>rizenine</id>
+            <name>Justin Stanczak</name>
+            <email>rizenine@gmail.com</email>
+        </developer>
+    </developers>
+
+    <distributionManagement>
+        <site>
+            <id>connector-liferay</id>
+            <name>connector-liferay</name>
+            <url>none</url>
+        </site>
+    </distributionManagement>
 
     <properties>
-        <connectorPackage>com.evolveum.polygon.connector.example.rest</connectorPackage>
-        <connectorClass>ExampleRestConnector</connectorClass>
+        <connectorPackage>edu.vinu.polygon.connector.liferay.rest</connectorPackage>
+        <connectorClass>LiferayRestConnector</connectorClass>
     </properties>
 
     <repositories>
@@ -73,17 +103,32 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
             </plugin>
+            <plugin>
+              <groupId>com.lewisd</groupId>
+              <artifactId>lint-maven-plugin</artifactId>
+              <version>0.0.8</version>
+            </plugin>
         </plugins>
     </build>
-    
-    <dependencies>
 
-		<dependency>
-			<artifactId>connector-rest</artifactId>
-	        <groupId>com.evolveum.polygon</groupId>
-	        <version>1.4.2.14-SNAPSHOT</version>
-		</dependency>
-		
-	</dependencies>
+
+    <dependencies>
+        <dependency>
+            <groupId>net.tirasa.connid</groupId>
+            <artifactId>connector-framework</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20160212</version>
+        </dependency>
+    </dependencies>
 
 </project>
