@@ -1,11 +1,11 @@
 
 package edu.vinu.polygon.connector.liferay.rest;
 
-
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.spi.Configuration;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.exceptions.*;
+import org.identityconnectors.common.security.GuardedString;
 
 import java.util.Collection;
 import java.util.ArrayList;
@@ -33,6 +33,8 @@ public class LiferayUsersHandler {
 
     private static final String companyUsersCountEntity = "{\"/user/get-company-users-count\":{\"companyId\":%s}}";
     private static final String companyUsersEntity = "{\"/user/get-company-users\":{\"companyId\":%s,\"start\":%s,\"end\":%s}}";
+    private static final String userByIdEntity = "{\"/user/get-user-by-id\":{\"userId\":%s}}";
+    private static final String updatePasswordEntity = "{\"/user/update-password\":{\"userId\":%s, \"password1\":\"%s\", \"password2\":\"%s\", \"passwordReset\": false}}";
 
     public LiferayUsersHandler(LiferayRestConfiguration config) {
       this.config = config;
@@ -42,7 +44,31 @@ public class LiferayUsersHandler {
       request.setEntity(new StringEntity(String.format(companyUsersCountEntity, config.getCompanyId())));
       CloseableHttpResponse response = client.execute(request);
       LOG.ok(">>> getCompanyUsersCount {0}", response.getEntity());
-      return EntityUtils.toString(response.getEntity());
+      return EntityUtils.toString(response.getEntity(), "UTF-8");
+    }
+
+    public JSONObject getUserById(Uid uid, HttpEntityEnclosingRequestBase request, CloseableHttpClient client) throws IOException, URISyntaxException {
+      request.setEntity(new StringEntity(String.format(userByIdEntity, uid.getUidValue())));
+      CloseableHttpResponse response = client.execute(request);
+      LOG.ok(">>> getUserById {0}", response.getEntity());
+      String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+      return new JSONObject(result);
+    }
+
+    public void updatePassword(Set<Attribute> attrs, Uid uid, HttpEntityEnclosingRequestBase request, CloseableHttpClient client) throws IOException, URISyntaxException {
+      GuardedString gpass = getAttr(attrs, "__PASSWORD__", GuardedString.class);
+      StringAccessor acc = new StringAccessor();
+
+      gpass.access(acc);
+
+      if(gpass != null) {
+        request.setEntity(new StringEntity(String.format(updatePasswordEntity, uid.getUidValue(), acc.getValue(), acc.getValue())));
+        LOG.ok(">>> updatePassword __PASSWORD__ {0}", getAttr(attrs, "__PASSWORD__", GuardedString.class));
+        LOG.ok(">>> updatePassword __PASSWORD__ {0}", acc.getValue());
+        request.setEntity(new StringEntity(String.format(updatePasswordEntity, uid.getUidValue(), acc.getValue(), acc.getValue())));
+        CloseableHttpResponse response = client.execute(request);
+        LOG.ok(">>> updatePassword {0}", response.getEntity());
+      }
     }
 
     public CloseableHttpResponse loadCompanyUsers(ResultsHandler handler, HttpEntityEnclosingRequestBase request, CloseableHttpClient client) throws IOException, URISyntaxException {
@@ -85,8 +111,11 @@ public class LiferayUsersHandler {
       return new Uid(newUid);
     }
 
-    public Uid updateUser(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo, HttpEntityEnclosingRequestBase request, CloseableHttpClient client) throws IOException, UnsupportedEncodingException {
-      request.setEntity(buildUserEntity(attrs, uid, "/user/update-user"));
+    public Uid updateUser(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo, HttpEntityEnclosingRequestBase request, CloseableHttpClient client) throws IOException, UnsupportedEncodingException, URISyntaxException {
+      request.setEntity(buildUserEntity(attrs, uid, "/user/update-user", getUserById(uid, request, client)));
+
+      updatePassword(attrs, uid, request, client);
+
       LOG.ok(">>> updateUser Attribute {0}", attrs);
       LOG.ok(">>> updateUser request(URI) {0}", request.getURI());
 
@@ -97,7 +126,6 @@ public class LiferayUsersHandler {
       LOG.ok(">>> updateUser response body {0}", result);
       JSONObject jors = new JSONObject(result);
       LOG.ok(">>> updateUser response json {0}", jors);
-
       return uid;
     }
 
@@ -134,29 +162,31 @@ public class LiferayUsersHandler {
       return new StringEntity(root.toString(), "UTF-8");
     }
 
-    private HttpEntity buildUserEntity(Set<Attribute> attrs, Uid uid, String cmd) throws UnsupportedEncodingException{
+    private HttpEntity buildUserEntity(Set<Attribute> attrs, Uid uid, String cmd, JSONObject user) throws UnsupportedEncodingException{
       JSONObject root = new JSONObject();
       JSONObject users = new JSONObject();
+
+      LOG.ok(">>> buildUserEntity user {0}", user);
       LOG.ok(">>> buildUserEntity UID {0}", uid);
       LOG.ok(">>> buildUserEntity AttributeDelta {0}", attrs);
       users.put("userId", new Integer(uid.getUidValue()));
-      users.put("oldPassword", "");
-      users.put("newPassword1", "");
-      users.put("newPassword2", "");
-      users.put("passwordReset", false);
+      users.put("-oldPassword", "");
+      users.put("-newPassword1", "");
+      users.put("-newPassword2", "");
+      users.put("-passwordReset", false);
       users.put("reminderQueryQuestion", getStringAttr(attrs, "reminderQueryQuestion", ""));
       users.put("reminderQueryAnswer", getStringAttr(attrs, "reminderQueryAnswer", ""));
       users.put("screenName", getStringAttr(attrs, "screenName", "a206ford"));
-      users.put("emailAddress", getStringAttr(attrs, "emailAddress", ""));
+      users.put("emailAddress", getStringAttr(attrs, "emailAddress", user.getString("emailAddress")));
       users.put("facebookId", getAttr(attrs, "facebookId", Integer.class, 0));
       users.put("openId", getStringAttr(attrs, "openId", ""));
       users.put("languageId", getStringAttr(attrs, "", ""));
       users.put("timeZoneId", getStringAttr(attrs, "", ""));
       users.put("greeting", getStringAttr(attrs, "", ""));
       users.put("comments", getStringAttr(attrs, "", ""));
-      users.put("firstName", getStringAttr(attrs, "firstName", ""));
-      users.put("middleName", getStringAttr(attrs, "middleName", ""));
-      users.put("lastName", getStringAttr(attrs, "lastName", ""));
+      users.put("firstName", getStringAttr(attrs, "firstName", user.getString("firstName")));
+      users.put("middleName", getStringAttr(attrs, "middleName", user.getString("middleName")));
+      users.put("lastName", getStringAttr(attrs, "lastName", user.getString("lastName")));
       users.put("prefixId", getAttr(attrs, "facebookId", Integer.class, 0));
       users.put("suffixId", getAttr(attrs, "facebookId", Integer.class, 0));
       users.put("male", false);
