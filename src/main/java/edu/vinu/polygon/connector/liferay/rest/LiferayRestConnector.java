@@ -72,9 +72,9 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 
   @Override
   public void test() {
-    LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration());
     try {
-      LOG.ok(">>> test finished: {0}", usersHandler.getCompanyUsersCount(new HttpPost(getURIBuilder().build()), getHttpClient()));
+      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
+      usersHandler.test();
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }
@@ -114,27 +114,29 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 
   @Override
   public void dispose() {
-    LOG.ok(">>> dispose finished");
+    try {
+      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
+      usersHandler.dispose();
+      LOG.ok(">>> dispose finished");
+    } catch (Exception e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
   }
 
   @Override
   public void executeQuery(ObjectClass oc, LiferayFilter filter, ResultsHandler handler, OperationOptions oo) {
-
-    LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration());
-
     if (ObjectClass.ACCOUNT.is(oc.ACCOUNT_NAME)) {
       try{
-        processResponseErrors(usersHandler.loadCompanyUsers(handler, new HttpPost(getURIBuilder().build()), getHttpClient()));
+        LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
+        processResponseErrors(usersHandler.executeQuery(oc, filter, handler, oo));
+        LOG.ok(">>> executeQuery finished");
       }catch(IOException e){
         LOG.warn(e, "Error when trying to get entity to json: {0}", e.getMessage());
       } catch (URISyntaxException e) {
         throw new IllegalArgumentException(e.getMessage(), e);
       }
     }
-    LOG.ok(">>> executeQuery finished");
   }
-
-
 
   @Override
   public FilterTranslator<LiferayFilter> createFilterTranslator(ObjectClass oc, OperationOptions oo) {
@@ -146,10 +148,12 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   @Override
   public Uid create(ObjectClass oc, Set<Attribute> set, OperationOptions oo) {
     try {
-      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration());
-    LOG.ok(">>> create {0} / {1} / {2}", oc, set, oo);
-    LOG.ok(">>> create finished");
-      return usersHandler.addUser(oc, set, oo, new HttpPost(getURIBuilder().build()), getHttpClient());
+      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
+      LOG.ok(">>> create {0} / {1} / {2}", oc, set, oo);
+      Uid uid = usersHandler.addUser(oc, set, oo);
+      usersHandler.updatePassword(oc, uid, set, oo);
+      LOG.ok(">>> create finished");
+      return uid;
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }
@@ -158,10 +162,12 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   @Override
   public Uid update(ObjectClass oc, Uid uid, Set<Attribute> set, OperationOptions oo) {
     try {
-      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration());
-    LOG.ok(">>> create {0} / {1} / {2}/ {3}", oc, uid, set, oo);
-    LOG.ok(">>> create finished");
-      return usersHandler.updateUser(oc, uid, set, oo, new HttpPost(getURIBuilder().build()), getHttpClient());
+      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
+      LOG.ok(">>> create {0} / {1} / {2}/ {3}", oc, uid, set, oo);
+      usersHandler.updatePassword(oc, uid, set, oo);
+      usersHandler.updateUser(oc, uid, set, oo);
+      LOG.ok(">>> create finished");
+      return uid;
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }
@@ -170,10 +176,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   @Override
   public void delete(ObjectClass oc, Uid uid, OperationOptions oo) {
     try {
-      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration());
-    LOG.ok(">>> delete {0} / {1} / {2}", oc, uid, oo);
-    LOG.ok(">>> delete finished");
-    usersHandler.deleteUser(oc, uid, oo, new HttpPost(getURIBuilder().build()), getHttpClient());
+        LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
+      LOG.ok(">>> delete {0} / {1} / {2}", oc, uid, oo);
+      usersHandler.deleteUser(oc, uid, oo);
+      LOG.ok(">>> delete finished");
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }
