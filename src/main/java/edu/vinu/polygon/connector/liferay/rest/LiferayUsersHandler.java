@@ -146,7 +146,7 @@ public class LiferayUsersHandler {
     JSONObject root = new JSONObject();
     JSONObject users = new JSONObject();
     users.put("companyId", config.getCompanyId());
-    users.put("autoPassword", false);
+    users.put("autoPassword", true);
     users.put("password1", "");
     users.put("password2", "");
     users.put("autoScreenName", false);
@@ -160,7 +160,7 @@ public class LiferayUsersHandler {
     users.put("lastName", getStringAttr(attrs, "lastName", ""));
     users.put("prefixId", getAttr(attrs, "facebookId", Integer.class, 0));
     users.put("suffixId", getAttr(attrs, "facebookId", Integer.class, 0));
-    users.put("male", false);
+    users.put("male", true);
     users.put("birthdayMonth", getAttr(attrs, "facebookId", Integer.class, 1));
     users.put("birthdayDay", getAttr(attrs, "facebookId", Integer.class, 1));
     users.put("birthdayYear", getAttr(attrs, "facebookId", Integer.class, 1970));
