@@ -187,57 +187,57 @@ public abstract class AbstractRestConnector<C extends AbstractRestConfiguration>
      * Checks HTTP response for errors. If the response is an error then the method
      * throws the ConnId exception that is the most appropriate match for the error.
      */
-    public void processResponseErrors(CloseableHttpResponse response) {
-        int statusCode = response.getStatusLine().getStatusCode();
-        if (statusCode >= 200 && statusCode <= 299) {
-            return;
-        }
-        String responseBody = null;
-        try {
-            responseBody = EntityUtils.toString(response.getEntity());
-        } catch (IOException e) {
-            LOG.warn("cannot read response body: " + e, e);
-        }
-
-        String message = "HTTP error " + statusCode + " " + response.getStatusLine().getReasonPhrase() + " : " + responseBody;
-        LOG.error("{0}", message);
-        if (statusCode == 400 || statusCode == 405 || statusCode == 406) {
-            closeResponse(response);
-            throw new ConnectorIOException(message);
-        }
-        if (statusCode == 401 || statusCode == 402 || statusCode == 403 || statusCode == 407) {
-            closeResponse(response);
-            throw new PermissionDeniedException(message);
-        }
-        if (statusCode == 404 || statusCode == 410) {
-            closeResponse(response);
-            throw new UnknownUidException(message);
-        }
-        if (statusCode == 408) {
-            closeResponse(response);
-            throw new OperationTimeoutException(message);
-        }
-        if (statusCode == 412) {
-            closeResponse(response);
-            throw new PreconditionFailedException(message);
-        }
-        if (statusCode == 418) {
-            closeResponse(response);
-            throw new UnsupportedOperationException("Sorry, no cofee: " + message);
-        }
-        // TODO: other codes
-        closeResponse(response);
-        throw new ConnectorException(message);
-    }
-
-    protected void closeResponse(CloseableHttpResponse response) {
-        // to avoid pool waiting
-        try {
-            response.close();
-        } catch (IOException e) {
-            LOG.warn(e, "Error when trying to close response: " + response);
-        }
-    }
+    // public void processResponseErrors(CloseableHttpResponse response) {
+    //     int statusCode = response.getStatusLine().getStatusCode();
+    //     if (statusCode >= 200 && statusCode <= 299) {
+    //         return;
+    //     }
+    //     String responseBody = null;
+    //     try {
+    //         responseBody = EntityUtils.toString(response.getEntity());
+    //     } catch (IOException e) {
+    //         LOG.warn("cannot read response body: " + e, e);
+    //     }
+    //
+    //     String message = "HTTP error " + statusCode + " " + response.getStatusLine().getReasonPhrase() + " : " + responseBody;
+    //     LOG.error("{0}", message);
+    //     if (statusCode == 400 || statusCode == 405 || statusCode == 406) {
+    //         closeResponse(response);
+    //         throw new ConnectorIOException(message);
+    //     }
+    //     if (statusCode == 401 || statusCode == 402 || statusCode == 403 || statusCode == 407) {
+    //         closeResponse(response);
+    //         throw new PermissionDeniedException(message);
+    //     }
+    //     if (statusCode == 404 || statusCode == 410) {
+    //         closeResponse(response);
+    //         throw new UnknownUidException(message);
+    //     }
+    //     if (statusCode == 408) {
+    //         closeResponse(response);
+    //         throw new OperationTimeoutException(message);
+    //     }
+    //     if (statusCode == 412) {
+    //         closeResponse(response);
+    //         throw new PreconditionFailedException(message);
+    //     }
+    //     if (statusCode == 418) {
+    //         closeResponse(response);
+    //         throw new UnsupportedOperationException("Sorry, no cofee: " + message);
+    //     }
+    //     // TODO: other codes
+    //     closeResponse(response);
+    //     throw new ConnectorException(message);
+    // }
+    //
+    // protected void closeResponse(CloseableHttpResponse response) {
+    //     // to avoid pool waiting
+    //     try {
+    //         response.close();
+    //     } catch (IOException e) {
+    //         LOG.warn(e, "Error when trying to close response: " + response);
+    //     }
+    // }
 
 
     @Override

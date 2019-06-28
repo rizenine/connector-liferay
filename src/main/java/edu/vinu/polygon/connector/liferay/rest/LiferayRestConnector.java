@@ -46,6 +46,7 @@ import org.identityconnectors.framework.spi.operations.UpdateOp;
 import org.identityconnectors.framework.spi.operations.DeleteOp;
 
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
+import org.identityconnectors.framework.common.objects.AttributeInfo.Flags;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
 import org.identityconnectors.framework.common.objects.filter.FilterTranslator;
@@ -57,6 +58,7 @@ import org.identityconnectors.common.security.GuardedString;
 import edu.vinu.polygon.connector.liferay.rest.AbstractRestConnector;
 
 import java.util.Set;
+import java.util.EnumSet;
 
 import java.util.Base64;
 import java.util.Base64.Encoder;
@@ -86,41 +88,71 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     ObjectClassInfoBuilder ocBuilder = new ObjectClassInfoBuilder();
 
     ocBuilder.setType("Account");
-
-    AttributeInfoBuilder attr = new AttributeInfoBuilder("screenName", String.class);
-    attr.setRequired(true);
-    ocBuilder.addAttributeInfo(attr.build());
-
-    attr = new AttributeInfoBuilder("firstName", String.class);
-    attr.setRequired(true);
-    ocBuilder.addAttributeInfo(attr.build());
-
-    attr = new AttributeInfoBuilder("lastName", String.class);
-    attr.setRequired(true);
-    ocBuilder.addAttributeInfo(attr.build());
-
-    attr = new AttributeInfoBuilder("emailAddress", String.class);
-    attr.setRequired(true);
-    ocBuilder.addAttributeInfo(attr.build());
-
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("autoPassword", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("autoScreenName", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("screenName", String.class, EnumSet.of(Flags.REQUIRED)));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("emailAddress", String.class, EnumSet.of(Flags.REQUIRED)));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("facebookId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("openId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("locale", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("firstName", String.class, EnumSet.of(Flags.REQUIRED)));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("middleName", String.class));
-
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("lastName", String.class, EnumSet.of(Flags.REQUIRED)));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("prefixId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("suffixId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("male", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("birthdayMonth", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("birthdayDay", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("birthdayYear", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("jobTitle", String.class));
+    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("groupIds", String.class, EnumSet.of(Flags.MULTIVALUED, Flags.REQUIRED, Flags.NOT_READABLE, Flags.NOT_RETURNED_BY_DEFAULT)));
+    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("organizationIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
+    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("roleIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
+    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
+    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupRoles", String.class, EnumSet.of(Flags.MULTIVALUED)));
+    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("sendEmail", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("reminderQueryQuestion", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("reminderQueryAnswer", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("languageId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("timeZoneId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("greeting", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("comments", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("smsSn", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("facebookSn", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("jabberSn", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("skypeSn", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("twitterSn", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("agreedToTermsOfUse", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("companyId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("contactId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("createDate", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("defaultUser", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("emailAddressVerified", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("externalReferenceCode", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("failedLoginAttempts", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("googleUserId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("graceLoginCount", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("lastFailedLoginDate", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("lastLoginDate", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("lastLoginIP", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("ldapServerId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("lockout", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("lockoutDate", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("loginDate", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("loginIP", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("modifiedDate", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("mvccVersion", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("portraitId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("portraitBytes", byte[].class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("portrait", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("status", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("uuid", String.class));
     schemaBuilder.defineObjectClass(ocBuilder.build());
-    attr = null;
 
     LOG.ok(">>> schema finished");
     return schemaBuilder.build();
-  }
-
-  @Override
-  public void dispose() {
-    try {
-      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
-      usersHandler.dispose();
-      LOG.ok(">>> dispose finished");
-    } catch (Exception e) {
-      throw new IllegalArgumentException(e.getMessage(), e);
-    }
   }
 
   @Override
@@ -128,11 +160,9 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     if (ObjectClass.ACCOUNT.is(oc.ACCOUNT_NAME)) {
       try{
         LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
-        processResponseErrors(usersHandler.executeQuery(oc, filter, handler, oo));
+        usersHandler.executeQuery(oc, filter, handler, oo);
         LOG.ok(">>> executeQuery finished");
-      }catch(IOException e){
-        LOG.warn(e, "Error when trying to get entity to json: {0}", e.getMessage());
-      } catch (URISyntaxException e) {
+      } catch (Exception e) {
         throw new IllegalArgumentException(e.getMessage(), e);
       }
     }
@@ -151,7 +181,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
       LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
       LOG.ok(">>> create {0} / {1} / {2}", oc, set, oo);
       Uid uid = usersHandler.addUser(oc, set, oo);
-      usersHandler.updatePassword(oc, uid, set, oo);
+      // usersHandler.updatePassword(oc, uid, set, oo);
+      // usersHandler.updatePortrait(oc, uid, set, oo);
+      usersHandler.updateAll(oc, uid, set, oo);
+      // usersHandler.updateStatus(oc, uid, set, oo);
       LOG.ok(">>> create finished");
       return uid;
     } catch (Exception e) {
@@ -164,7 +197,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     try {
       LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
       LOG.ok(">>> create {0} / {1} / {2}/ {3}", oc, uid, set, oo);
-      usersHandler.updatePassword(oc, uid, set, oo);
+      usersHandler.updateAll(oc, uid, set, oo);
+      // usersHandler.updatePassword(oc, uid, set, oo);
+      // usersHandler.updateStatus(oc, uid, set, oo);
+      // usersHandler.updatePortrait(oc, uid, set, oo);
       usersHandler.updateUser(oc, uid, set, oo);
       LOG.ok(">>> create finished");
       return uid;
