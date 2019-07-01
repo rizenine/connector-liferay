@@ -51,6 +51,7 @@ import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
 import org.identityconnectors.framework.common.objects.filter.FilterTranslator;
 import org.identityconnectors.framework.common.objects.*;
+import org.identityconnectors.framework.common.exceptions.*;
 
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;
@@ -75,8 +76,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   @Override
   public void test() {
     try {
-      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
-      usersHandler.test();
+      LOG.ok(">>> test {0}", getCompanyUsersCount());
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }
@@ -159,8 +159,66 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   public void executeQuery(ObjectClass oc, LiferayFilter filter, ResultsHandler handler, OperationOptions oo) {
     if (ObjectClass.ACCOUNT.is(oc.ACCOUNT_NAME)) {
       try{
-        LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
-        usersHandler.executeQuery(oc, filter, handler, oo);
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("companyId", getConfiguration().getCompanyId());
+        params.put("start", 0);
+        params.put("end", getCompanyUsersCount());
+        cmd.put("/user/get-company-users", params);
+        LOG.ok(">>> executeQuery JSON {0}", cmd.toString());
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        JSONArray users = new JSONArray(EntityUtils.toString(response.getEntity()));
+
+        LOG.ok(">>> executeQuery users {0}", users);
+
+        for (Object o : users) {
+          ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
+          JSONObject u = (JSONObject) o;
+          builder.setUid(u.getString("userId"));
+          builder.setName(u.getString("screenName"));
+          addJSONAddr(builder, u, "agreedToTermsOfUse");
+          addJSONAddr(builder, u, "comments");
+          addJSONAddr(builder, u, "companyId");
+          addJSONAddr(builder, u, "contactId");
+          addJSONAddr(builder, u, "createDate");
+          addJSONAddr(builder, u, "defaultUser");
+          addJSONAddr(builder, u, "emailAddress");
+          addJSONAddr(builder, u, "emailAddressVerified");
+          addJSONAddr(builder, u, "externalReferenceCode");
+          addJSONAddr(builder, u, "facebookId");
+          addJSONAddr(builder, u, "failedLoginAttempts");
+          addJSONAddr(builder, u, "firstName");
+          addJSONAddr(builder, u, "googleUserId");
+          addJSONAddr(builder, u, "graceLoginCount");
+          addJSONAddr(builder, u, "greeting");
+          addJSONAddr(builder, u, "jobTitle");
+          addJSONAddr(builder, u, "languageId");
+          addJSONAddr(builder, u, "lastFailedLoginDate");
+          addJSONAddr(builder, u, "lastLoginDate");
+          addJSONAddr(builder, u, "lastLoginIP");
+          addJSONAddr(builder, u, "lastName");
+          addJSONAddr(builder, u, "ldapServerId");
+          addJSONAddr(builder, u, "lockout");
+          addJSONAddr(builder, u, "lockoutDate");
+          addJSONAddr(builder, u, "loginDate");
+          addJSONAddr(builder, u, "loginIP");
+          addJSONAddr(builder, u, "middleName");
+          addJSONAddr(builder, u, "modifiedDate");
+          addJSONAddr(builder, u, "mvccVersion");
+          addJSONAddr(builder, u, "openId");
+          addJSONAddr(builder, u, "portraitId");
+          addJSONAddr(builder, u, "reminderQueryQuestion");
+          addJSONAddr(builder, u, "reminderQueryAnswer");
+          addJSONAddr(builder, u, "screenName");
+          addJSONAddr(builder, u, "status");
+          addJSONAddr(builder, u, "timeZoneId");
+          addJSONAddr(builder, u, "userId");
+          addJSONAddr(builder, u, "uuid");
+          handler.handle(builder.build());
+        }
+        processResponseErrors(response);
         LOG.ok(">>> executeQuery finished");
       } catch (Exception e) {
         throw new IllegalArgumentException(e.getMessage(), e);
@@ -176,16 +234,30 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   }
 
   @Override
-  public Uid create(ObjectClass oc, Set<Attribute> set, OperationOptions oo) {
+  public Uid create(ObjectClass oc, Set<Attribute> attrs, OperationOptions oo) {
     try {
-      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
-      LOG.ok(">>> create {0} / {1} / {2}", oc, set, oo);
-      Uid uid = usersHandler.addUser(oc, set, oo);
-      // usersHandler.updatePassword(oc, uid, set, oo);
-      // usersHandler.updatePortrait(oc, uid, set, oo);
-      usersHandler.updateAll(oc, uid, set, oo);
-      // usersHandler.updateStatus(oc, uid, set, oo);
-      LOG.ok(">>> create finished");
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONObject user = addUserJSON(attrs);
+      LOG.ok(">>> create JSON {0}",user.toString());
+      request.setEntity(new StringEntity(user.toString(), "UTF-8"));
+
+      CloseableHttpResponse response = getHttpClient().execute(request);
+      String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+
+
+      JSONObject jors = new JSONObject(result);
+      LOG.ok(">>> create json {0}", jors);
+      Uid uid = new Uid(jors.getString("userId"));
+      processResponseErrors(response);
+
+      JSONArray cmds = new JSONArray();
+      updatePasswordJSON(cmds, attrs, uid);
+      updateStatusJSON(cmds, attrs, uid);
+      updatePortraitJSON(cmds, attrs, uid);
+      request.setEntity(new StringEntity(cmds.toString(), "UTF-8"));
+      LOG.ok(">>> create JSON {0}", cmds.toString());
+      response = getHttpClient().execute(request);
+      processResponseErrors(response);
       return uid;
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
@@ -193,31 +265,201 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   }
 
   @Override
-  public Uid update(ObjectClass oc, Uid uid, Set<Attribute> set, OperationOptions oo) {
+  public Uid update(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo) {
     try {
-      LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
-      LOG.ok(">>> create {0} / {1} / {2}/ {3}", oc, uid, set, oo);
-      usersHandler.updateAll(oc, uid, set, oo);
-      // usersHandler.updatePassword(oc, uid, set, oo);
-      // usersHandler.updateStatus(oc, uid, set, oo);
-      // usersHandler.updatePortrait(oc, uid, set, oo);
-      usersHandler.updateUser(oc, uid, set, oo);
-      LOG.ok(">>> create finished");
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONArray cmds = new JSONArray();
+      updateUserJSON(cmds, attrs, uid);
+      updatePasswordJSON(cmds, attrs, uid);
+      updateStatusJSON(cmds, attrs, uid);
+      updatePortraitJSON(cmds, attrs, uid);
+      request.setEntity(new StringEntity(cmds.toString(), "UTF-8"));
+      LOG.ok(">>> update JSON {0}", cmds.toString());
+      processResponseErrors(getHttpClient().execute(request));
       return uid;
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }
+  }
+
+  public Uid createOrUpdate(ObjectClass oc, Uid uid, Set<Attribute> set, OperationOptions oo) {
+    if(uid == null) {
+      //create......
+    } else {
+      //update.......
+    }
+    return uid;
   }
 
   @Override
   public void delete(ObjectClass oc, Uid uid, OperationOptions oo) {
     try {
-        LiferayUsersHandler usersHandler = new LiferayUsersHandler(getConfiguration(), getURIBuilder().build(), getHttpClient());
-      LOG.ok(">>> delete {0} / {1} / {2}", oc, uid, oo);
-      usersHandler.deleteUser(oc, uid, oo);
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      LOG.ok(">>> deleteUser UID {0}", uid.getUidValue());
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("userId", new Integer(uid.getUidValue()));
+      cmd.put("/user/delete-user", params);
+      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+      processResponseErrors(getHttpClient().execute(request));
       LOG.ok(">>> delete finished");
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }
   }
+
+  private JSONObject addUserJSON(Set<Attribute> attrs) {
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("companyId", getConfiguration().getCompanyId());
+    params.put("autoPassword", true); // Don't set password here
+    params.put("password1", ""); // Don't set password here
+    params.put("password2", ""); // Don't set password here
+    params.put("autoScreenName", getAttr(attrs, "autoScreenName", Boolean.class, false));
+    params.put("screenName", getStringAttr(attrs, "screenName", ""));
+    params.put("emailAddress", getStringAttr(attrs, "emailAddress", ""));
+    params.put("facebookId", getAttr(attrs, "facebookId", Integer.class, 0));
+    params.put("openId", getStringAttr(attrs, "openId", ""));
+    params.put("locale", getStringAttr(attrs, "locale", ""));
+    params.put("firstName", getStringAttr(attrs, "firstName", ""));
+    params.put("middleName", getStringAttr(attrs, "middleName", ""));
+    params.put("lastName", getStringAttr(attrs, "lastName", ""));
+    params.put("prefixId", getAttr(attrs, "prefixId", Integer.class, 0));
+    params.put("suffixId", getAttr(attrs, "suffixId", Integer.class, 0));
+    params.put("male", getAttr(attrs, "male", Boolean.class, false));
+    params.put("birthdayMonth", getAttr(attrs, "birthdayMonth", Integer.class, 1));
+    params.put("birthdayDay", getAttr(attrs, "birthdayDay", Integer.class, 1));
+    params.put("birthdayYear", getAttr(attrs, "birthdayYear", Integer.class, 1970));
+    params.put("jobTitle", getStringAttr(attrs, "jobTitle", ""));
+    params.put("groupIds", JSONObject.NULL);
+    params.put("organizationIds", JSONObject.NULL);
+    params.put("roleIds", JSONObject.NULL);
+    params.put("userGroupIds", JSONObject.NULL);
+    params.put("sendEmail", getAttr(attrs, "sendEmail", Boolean.class, false));
+    cmd.put("/user/add-user", params);
+    LOG.ok(">>> addUser JSON {0}", cmd.toString());
+    return cmd;
+  }
+
+  private void updateUserJSON(JSONArray cmds, Set<Attribute> attrs, Uid uid) {
+    JSONObject user = getUserById(uid);
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("userId", new Integer(uid.getUidValue()));
+    params.put("oldPassword", ""); // Don't set password here
+    params.put("newPassword1", ""); // Don't set password here
+    params.put("newPassword2", ""); // Don't set password here
+    params.put("passwordReset", false); // Don't set password here
+    putJSONAttr(params, "reminderQueryQuestion", user, attrs, "");
+    putJSONAttr(params, "reminderQueryAnswer", user, attrs, "");
+    putJSONAttr(params, "screenName", user, attrs, "");
+    putJSONAttr(params, "emailAddress", user, attrs, "");
+    putJSONAttr(params, "facebookId", user, attrs, 0);
+    putJSONAttr(params, "openId", user, attrs, "");
+    putJSONAttr(params, "languageId", user, attrs, "");
+    putJSONAttr(params, "timeZoneId", user, attrs, "");
+    putJSONAttr(params, "greeting", user, attrs, "");
+    putJSONAttr(params, "comments", user, attrs, "");
+    putJSONAttr(params, "firstName", user, attrs, "");
+    putJSONAttr(params, "middleName", user, attrs, "");
+    putJSONAttr(params, "lastName", user, attrs, "");
+    putJSONAttr(params, "prefixId", user, attrs, 0);
+    putJSONAttr(params, "suffixId", user, attrs, 0);
+    putJSONAttr(params, "male", user, attrs, false);
+    putJSONAttr(params, "birthdayMonth", user, attrs, 1);
+    putJSONAttr(params, "birthdayDay", user, attrs, 1);
+    putJSONAttr(params, "birthdayYear", user, attrs, 1970);
+    putJSONAttr(params, "smsSn", user, attrs, "");
+    putJSONAttr(params, "facebookSn", user, attrs, "");
+    putJSONAttr(params, "jabberSn", user, attrs, "");
+    putJSONAttr(params, "skypeSn", user, attrs, "");
+    putJSONAttr(params, "twitterSn", user, attrs, "");
+    putJSONAttr(params, "jobTitle", user, attrs, "");
+    params.put("groupIds", JSONObject.NULL);
+    params.put("organizationIds", JSONObject.NULL);
+    params.put("roleIds", JSONObject.NULL);
+    params.put("userGroupRoles", JSONObject.NULL);
+    params.put("userGroupIds", JSONObject.NULL);
+    cmd.put("/user/update-user", params);
+    LOG.ok(">>> updateUserEntity JSON {0}", cmd.toString());
+    cmds.put(cmd);
+  }
+
+  private JSONObject getUserById(Uid uid) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("userId", uid.getUidValue());
+      cmd.put("/user/get-user-by-id", params);
+      LOG.ok(">>> getUserById JSON {0}", cmd.toString());
+      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+      CloseableHttpResponse response = getHttpClient().execute(request);
+      LOG.ok(">>> getUserById {0}", response.getEntity());
+      String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+      processResponseErrors(response);
+      return new JSONObject(result);
+    } catch (Exception e) {
+      throw new ConnectorIOException(e.getMessage(), e);
+    }
+  }
+
+  private String getCompanyUsersCount() throws IOException, URISyntaxException {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("companyId", getConfiguration().getCompanyId());
+      cmd.put("/user/get-company-users-count", params);
+      LOG.ok(">>> getCompanyUsersCount JSON {0}", cmd.toString());
+      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+      CloseableHttpResponse response = getHttpClient().execute(request);
+      LOG.ok(">>> getCompanyUsersCount {0}", response.getEntity());
+      processResponseErrors(response);
+      return EntityUtils.toString(response.getEntity(), "UTF-8");
+    } catch (Exception e) {
+      throw new ConnectorIOException(e.getMessage(), e);
+    }
+  }
+
+  private void updatePasswordJSON(JSONArray cmds, Set<Attribute> attrs, Uid uid) {
+    GuardedString gpass = getAttr(attrs, "__PASSWORD__", GuardedString.class);
+    StringAccessor acc = new StringAccessor();
+    if(gpass != null) {
+      gpass.access(acc);
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("userId", uid.getUidValue());
+      params.put("password1", acc.getValue());
+      params.put("password2", acc.getValue());
+      params.put("passwordReset", false);
+      cmd.put("/user/update-password", params);
+      cmds.put(cmd);
+    }
+  }
+
+  private void updateStatusJSON(JSONArray cmds, Set<Attribute> attrs, Uid uid) {
+    Integer status = getAttr(attrs, "status", Integer.class);
+    if(status != null) {
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("userId", uid.getUidValue());
+      params.put("status", status);
+      cmd.put("/user/update-status", params);
+      cmds.put(cmd);
+    }
+  }
+
+  private void updatePortraitJSON(JSONArray cmds, Set<Attribute> attrs, Uid uid) {
+    byte[] portrait = getAttr(attrs, "portraitBytes", byte[].class);
+    if(portrait != null) {
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("userId", uid.getUidValue());
+      params.put("bytes", portrait);
+      cmd.put("/user/update-portrait", params);
+      cmds.put(cmd);
+    }
+  }
+
 }
