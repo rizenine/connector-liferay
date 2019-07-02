@@ -328,7 +328,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     }
 
     if (oc.is(ROLE_OBJECT_CLASS)) {
-      return null;
+      return createOrUpdateRole(oc, null, attrs, oo);
     }
     return null;
   }
@@ -345,7 +345,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     }
 
     if (oc.is(ROLE_OBJECT_CLASS)) {
-      return null;
+      return createOrUpdateRole(oc, uid, attrs, oo);
     }
     return null;
   }
@@ -381,6 +381,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }
+    return uid;
+  }
+
+  public Uid createOrUpdateRole(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo) {
     return uid;
   }
 
