@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016 Evolveum
+* Copyright (c) 2019 Vincennes University
  * <p/>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,6 +58,7 @@ import java.util.Base64;
 import java.util.Base64.Encoder;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
@@ -319,6 +320,10 @@ public abstract class AbstractRestConnector<C extends AbstractRestConfiguration>
         return defaultVal;
     }
 
+    protected JSONArray getJSONArray(Set<Attribute> attributes, String attrName) {
+      return new JSONArray(getStringAttr(attributes, attrName));
+    }
+
     protected String[] getMultiValAttr(Set<Attribute> attributes, String attrName, String[] defaultVal) {
         for (Attribute attr : attributes) {
             if (attrName.equals(attr.getName())) {
@@ -363,7 +368,7 @@ public abstract class AbstractRestConnector<C extends AbstractRestConfiguration>
         obj.put(attrName, o);
       }
     }
-    
+
     protected void addJSONAddr(ConnectorObjectBuilder builder, JSONObject obj, String attrName) {
       if(!obj.isNull(attrName)) {
         builder.addAttribute(attrName, obj.get(attrName));

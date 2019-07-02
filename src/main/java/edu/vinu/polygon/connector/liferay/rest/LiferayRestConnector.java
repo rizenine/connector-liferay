@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016 Evolveum
+* Copyright (c) 2019 Vincennes University
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ import edu.vinu.polygon.connector.liferay.rest.AbstractRestConnector;
 
 import java.util.Set;
 import java.util.EnumSet;
+import java.util.ArrayList;
 
 import java.util.Base64;
 import java.util.Base64.Encoder;
@@ -73,6 +74,9 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 
   private static final Log LOG = Log.getLog(LiferayRestConnector.class);
 
+	public static final String ACCOUNT_OBJECT_CLASS = "Account";
+	public static final String ROLE_OBJECT_CLASS = "Role";
+
   @Override
   public void test() {
     try {
@@ -85,9 +89,16 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   @Override
   public Schema schema() {
     SchemaBuilder schemaBuilder = new SchemaBuilder(LiferayRestConnector.class);
+		schemaBuilder.defineObjectClass(prepareAccountClass().build());
+		schemaBuilder.defineObjectClass(prepareRoleClass().build());
+    LOG.ok(">>> schema finished");
+    return schemaBuilder.build();
+  }
+
+	private ObjectClassInfoBuilder prepareAccountClass(){
     ObjectClassInfoBuilder ocBuilder = new ObjectClassInfoBuilder();
 
-    ocBuilder.setType("Account");
+    ocBuilder.setType(ACCOUNT_OBJECT_CLASS);
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("autoPassword", Boolean.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("autoScreenName", Boolean.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("screenName", String.class, EnumSet.of(Flags.REQUIRED)));
@@ -107,7 +118,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("jobTitle", String.class));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("groupIds", String.class, EnumSet.of(Flags.MULTIVALUED, Flags.REQUIRED, Flags.NOT_READABLE, Flags.NOT_RETURNED_BY_DEFAULT)));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("organizationIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
-    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("roleIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("roleIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupRoles", String.class, EnumSet.of(Flags.MULTIVALUED)));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
@@ -149,15 +160,40 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("portrait", Boolean.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("status", Integer.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("uuid", String.class));
-    schemaBuilder.defineObjectClass(ocBuilder.build());
+    return ocBuilder;
+	}
 
-    LOG.ok(">>> schema finished");
-    return schemaBuilder.build();
-  }
+
+	private ObjectClassInfoBuilder prepareRoleClass(){
+    ObjectClassInfoBuilder ocBuilder = new ObjectClassInfoBuilder();
+    ocBuilder.setType(ROLE_OBJECT_CLASS);
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("name", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("type", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("roleId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("classPK", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("description", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("descriptionCurrentValue", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("classNameId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("title", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userName", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("uuid", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("companyId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("subtype", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("modifiedDate", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("mvccVersion", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("titleCurrentValue", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("createDate", Integer.class));
+    return ocBuilder;
+	}
 
   @Override
   public void executeQuery(ObjectClass oc, LiferayFilter filter, ResultsHandler handler, OperationOptions oo) {
-    if (ObjectClass.ACCOUNT.is(oc.ACCOUNT_NAME)) {
+    LOG.ok(">>> executeQuery ObjectClass {0}", oc);
+    LOG.ok(">>> executeQuery filter {0}", filter);
+    LOG.ok(">>> executeQuery OperationOptions {0}", oo);
+
+    if (oc.is(ACCOUNT_OBJECT_CLASS)) {
       try{
         HttpPost request = new HttpPost(getURIBuilder().build());
         JSONObject cmd = new JSONObject();
@@ -166,7 +202,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         params.put("start", 0);
         params.put("end", getCompanyUsersCount());
         cmd.put("/user/get-company-users", params);
-        LOG.ok(">>> executeQuery JSON {0}", cmd.toString());
+        LOG.ok(">>> executeQuery account JSON {0}", cmd.toString());
         request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
         CloseableHttpResponse response = getHttpClient().execute(request);
         JSONArray users = new JSONArray(EntityUtils.toString(response.getEntity()));
@@ -176,7 +212,8 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         for (Object o : users) {
           ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
           JSONObject u = (JSONObject) o;
-          builder.setUid(u.getString("userId"));
+          Uid uid = new Uid(u.getString("userId"));
+          builder.setUid(uid);
           builder.setName(u.getString("screenName"));
           addJSONAddr(builder, u, "agreedToTermsOfUse");
           addJSONAddr(builder, u, "comments");
@@ -216,6 +253,53 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           addJSONAddr(builder, u, "timeZoneId");
           addJSONAddr(builder, u, "userId");
           addJSONAddr(builder, u, "uuid");
+          builder.addAttribute("roleIds", getUserRoleIds(uid));
+          handler.handle(builder.build());
+        }
+        processResponseErrors(response);
+        LOG.ok(">>> executeQuery finished");
+      } catch (Exception e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
+    }
+
+    if (oc.is(ROLE_OBJECT_CLASS)) {
+      try{
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("companyId", getConfiguration().getCompanyId());
+        params.put("types", new JSONArray());
+        cmd.put("/role/get-roles", params);
+        LOG.ok(">>> executeQuery roles JSON {0}", cmd.toString());
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        JSONArray roles = new JSONArray(EntityUtils.toString(response.getEntity()));
+
+        LOG.ok(">>> executeQuery roles {0}", roles);
+
+        for (Object o : roles) {
+          ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
+          JSONObject u = (JSONObject) o;
+          builder.setUid(u.getString("roleId"));
+          builder.setName(u.getString("name"));
+          addJSONAddr(builder, u, "name");
+          addJSONAddr(builder, u, "roleId");
+          addJSONAddr(builder, u, "type");
+          addJSONAddr(builder, u, "classPK");
+          addJSONAddr(builder, u, "description");
+          addJSONAddr(builder, u, "descriptionCurrentValue");
+          addJSONAddr(builder, u, "classNameId");
+          addJSONAddr(builder, u, "title");
+          addJSONAddr(builder, u, "userName");
+          addJSONAddr(builder, u, "userId");
+          addJSONAddr(builder, u, "uuid");
+          addJSONAddr(builder, u, "companyId");
+          addJSONAddr(builder, u, "subtype");
+          addJSONAddr(builder, u, "modifiedDate");
+          addJSONAddr(builder, u, "mvccVersion");
+          addJSONAddr(builder, u, "titleCurrentValue");
+          addJSONAddr(builder, u, "createDate");
           handler.handle(builder.build());
         }
         processResponseErrors(response);
@@ -235,58 +319,67 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 
   @Override
   public Uid create(ObjectClass oc, Set<Attribute> attrs, OperationOptions oo) {
-    try {
-      HttpPost request = new HttpPost(getURIBuilder().build());
-      JSONObject user = addUserJSON(attrs);
-      LOG.ok(">>> create JSON {0}",user.toString());
-      request.setEntity(new StringEntity(user.toString(), "UTF-8"));
+    LOG.ok(">>> create ObjectClass {0}", oc);
+    LOG.ok(">>> create Attribute {0}", attrs);
+    LOG.ok(">>> create OperationOptions {0}", oo);
 
-      CloseableHttpResponse response = getHttpClient().execute(request);
-      String result = EntityUtils.toString(response.getEntity(), "UTF-8");
-
-
-      JSONObject jors = new JSONObject(result);
-      LOG.ok(">>> create json {0}", jors);
-      Uid uid = new Uid(jors.getString("userId"));
-      processResponseErrors(response);
-
-      JSONArray cmds = new JSONArray();
-      updatePasswordJSON(cmds, attrs, uid);
-      updateStatusJSON(cmds, attrs, uid);
-      updatePortraitJSON(cmds, attrs, uid);
-      request.setEntity(new StringEntity(cmds.toString(), "UTF-8"));
-      LOG.ok(">>> create JSON {0}", cmds.toString());
-      response = getHttpClient().execute(request);
-      processResponseErrors(response);
-      return uid;
-    } catch (Exception e) {
-      throw new IllegalArgumentException(e.getMessage(), e);
+    if (oc.is(ACCOUNT_OBJECT_CLASS)) {
+      return createOrUpdateAccount(oc, null, attrs, oo);
     }
+
+    if (oc.is(ROLE_OBJECT_CLASS)) {
+      return null;
+    }
+    return null;
   }
 
   @Override
   public Uid update(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo) {
+    LOG.ok(">>> update ObjectClass {0}", oc);
+    LOG.ok(">>> update Uid {0}", uid);
+    LOG.ok(">>> update Attribute {0}", attrs);
+    LOG.ok(">>> update OperationOptions {0}", oo);
+
+    if (oc.is(ACCOUNT_OBJECT_CLASS)) {
+      return createOrUpdateAccount(oc, uid, attrs, oo);
+    }
+
+    if (oc.is(ROLE_OBJECT_CLASS)) {
+      return null;
+    }
+    return null;
+  }
+
+  public Uid createOrUpdateAccount(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo) {
     try {
       HttpPost request = new HttpPost(getURIBuilder().build());
       JSONArray cmds = new JSONArray();
-      updateUserJSON(cmds, attrs, uid);
+      if(uid == null) {
+        JSONObject user = addUserJSON(attrs);
+        LOG.ok(">>> create JSON {0}",user.toString());
+        request.setEntity(new StringEntity(user.toString(), "UTF-8"));
+
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+
+        JSONObject jors = new JSONObject(result);
+        LOG.ok(">>> create json {0}", jors);
+        uid = new Uid(jors.getString("userId"));
+        processResponseErrors(response);
+        request = new HttpPost(getURIBuilder().build());
+      } else {
+        updateUserJSON(cmds, attrs, uid);
+        LOG.ok(">>> update JSON {0}", cmds.toString());
+      }
+
       updatePasswordJSON(cmds, attrs, uid);
       updateStatusJSON(cmds, attrs, uid);
       updatePortraitJSON(cmds, attrs, uid);
       request.setEntity(new StringEntity(cmds.toString(), "UTF-8"));
-      LOG.ok(">>> update JSON {0}", cmds.toString());
+      LOG.ok(">>> update extra JSON {0}", cmds.toString());
       processResponseErrors(getHttpClient().execute(request));
-      return uid;
     } catch (Exception e) {
       throw new IllegalArgumentException(e.getMessage(), e);
-    }
-  }
-
-  public Uid createOrUpdate(ObjectClass oc, Uid uid, Set<Attribute> set, OperationOptions oo) {
-    if(uid == null) {
-      //create......
-    } else {
-      //update.......
     }
     return uid;
   }
@@ -333,7 +426,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     params.put("jobTitle", getStringAttr(attrs, "jobTitle", ""));
     params.put("groupIds", JSONObject.NULL);
     params.put("organizationIds", JSONObject.NULL);
-    params.put("roleIds", JSONObject.NULL);
+    params.put("roleIds", getAttr(attrs, "roleIds", JSONArray.class, new JSONArray()));
     params.put("userGroupIds", JSONObject.NULL);
     params.put("sendEmail", getAttr(attrs, "sendEmail", Boolean.class, false));
     cmd.put("/user/add-user", params);
@@ -377,12 +470,13 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     putJSONAttr(params, "jobTitle", user, attrs, "");
     params.put("groupIds", JSONObject.NULL);
     params.put("organizationIds", JSONObject.NULL);
-    params.put("roleIds", JSONObject.NULL);
+    putJSONAttr(params, "roleIds", user, attrs, JSONObject.NULL);
     params.put("userGroupRoles", JSONObject.NULL);
     params.put("userGroupIds", JSONObject.NULL);
     cmd.put("/user/update-user", params);
     LOG.ok(">>> updateUserEntity JSON {0}", cmd.toString());
     cmds.put(cmd);
+    LOG.ok(">>> updateUserEntity roleids JSON {0}", getStringAttr(attrs, "roleIds", "NO ROLES"));
   }
 
   private JSONObject getUserById(Uid uid) {
@@ -398,7 +492,34 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
       LOG.ok(">>> getUserById {0}", response.getEntity());
       String result = EntityUtils.toString(response.getEntity(), "UTF-8");
       processResponseErrors(response);
-      return new JSONObject(result);
+      JSONObject user = new JSONObject(result);
+      user.put("roleIds", getUserRoleIds(uid));
+      return user;
+    } catch (Exception e) {
+      throw new ConnectorIOException(e.getMessage(), e);
+    }
+  }
+
+  private ArrayList<String> getUserRoleIds(Uid uid) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("userId", uid.getUidValue());
+      cmd.put("/role/get-user-roles", params);
+      LOG.ok(">>> getUserRoles JSON {0}", cmd.toString());
+      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+      CloseableHttpResponse response = getHttpClient().execute(request);
+      JSONArray result = new JSONArray(EntityUtils.toString(response.getEntity(), "UTF-8"));
+      processResponseErrors(response);
+
+      ArrayList<String> roleIds = new ArrayList<String>();
+      for (Object o : result) {
+        JSONObject role = (JSONObject) o;
+        roleIds.add(role.getString("roleId"));
+      }
+      LOG.ok(">>> getUserRoles roleIds {0}", roleIds);
+      return roleIds;
     } catch (Exception e) {
       throw new ConnectorIOException(e.getMessage(), e);
     }
