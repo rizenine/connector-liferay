@@ -12,11 +12,10 @@ Things that work:
 
 Association of roles example:
 
- ```
+ ```XML
      <inducement>
          <construction>
              <resourceRef oid="<Your OID>" relation="org:default" type="c:ResourceType">
-                 <!-- test2 -->
              </resourceRef>
              <kind>entitlement</kind>
              <intent>role</intent>
