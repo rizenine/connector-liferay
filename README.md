@@ -6,3 +6,42 @@ Things that work:
 
  - Add/Update/Delete User
  - Add/Update/Delete Roles
+ - Role associations
+
+
+
+Association of roles example:
+
+ ```
+     <inducement>
+         <construction>
+             <resourceRef oid="<Your OID>" relation="org:default" type="c:ResourceType">
+                 <!-- test2 -->
+             </resourceRef>
+             <kind>entitlement</kind>
+             <intent>role</intent>
+         </construction>
+     </inducement>
+     <inducement>
+         <construction>
+             <resourceRef oid="<Your OID>" relation="org:default" type="c:ResourceType">
+             </resourceRef>
+             <kind>account</kind>
+             <intent>default</intent>
+             <association>
+                 <c:ref>ri:role</c:ref>
+                 <outbound>
+                     <expression>
+                         <associationFromLink xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="c:AssociationFromLinkExpressionEvaluatorType">
+                             <projectionDiscriminator xsi:type="c:ShadowDiscriminatorType">
+                                 <kind>entitlement</kind>
+                                 <intent>role</intent>
+                             </projectionDiscriminator>
+                         </associationFromLink>
+                     </expression>
+                 </outbound>
+             </association>
+         </construction>
+         <order>2</order>
+     </inducement>
+```
