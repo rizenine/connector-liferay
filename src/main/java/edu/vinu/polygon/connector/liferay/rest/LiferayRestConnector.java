@@ -385,23 +385,67 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   }
 
   public Uid createOrUpdateRole(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONArray cmds = new JSONArray();
+      if(uid == null) {
+        JSONObject role = addRoleJSON(attrs);
+        LOG.ok(">>> create JSON {0}",role.toString());
+        request.setEntity(new StringEntity(role.toString(), "UTF-8"));
+
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+
+        JSONObject jors = new JSONObject(result);
+        LOG.ok(">>> create json {0}", jors);
+        uid = new Uid(jors.getString("roleId"));
+        processResponseErrors(response);
+      } else {
+        updateRoleJSON(cmds, attrs, uid);
+        LOG.ok(">>> update JSON {0}", cmds.toString());
+        request.setEntity(new StringEntity(cmds.toString(), "UTF-8"));
+        processResponseErrors(getHttpClient().execute(request));
+      }
+    } catch (Exception e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
     return uid;
   }
 
   @Override
   public void delete(ObjectClass oc, Uid uid, OperationOptions oo) {
-    try {
-      HttpPost request = new HttpPost(getURIBuilder().build());
-      LOG.ok(">>> deleteUser UID {0}", uid.getUidValue());
-      JSONObject cmd = new JSONObject();
-      JSONObject params = new JSONObject();
-      params.put("userId", new Integer(uid.getUidValue()));
-      cmd.put("/user/delete-user", params);
-      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
-      processResponseErrors(getHttpClient().execute(request));
+    LOG.ok(">>> update ObjectClass {0}", oc);
+    LOG.ok(">>> update Uid {0}", uid);
+    LOG.ok(">>> update OperationOptions {0}", oo);
+    if (oc.is(ACCOUNT_OBJECT_CLASS)) {
+      try {
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        LOG.ok(">>> deleteUser UID {0}", uid.getUidValue());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("userId", new Integer(uid.getUidValue()));
+        cmd.put("/user/delete-user", params);
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        processResponseErrors(getHttpClient().execute(request));
+      } catch (Exception e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
+    }
+
+    if (oc.is(ROLE_OBJECT_CLASS)) {
+      try {
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        LOG.ok(">>> deleteRole UID {0}", uid.getUidValue());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("roleId", new Integer(uid.getUidValue()));
+        cmd.put("/role/delete-role", params);
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        processResponseErrors(getHttpClient().execute(request));
+      } catch (Exception e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
       LOG.ok(">>> delete finished");
-    } catch (Exception e) {
-      throw new IllegalArgumentException(e.getMessage(), e);
     }
   }
 
@@ -483,6 +527,36 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     LOG.ok(">>> updateUserEntity roleids JSON {0}", getStringAttr(attrs, "roleIds", "NO ROLES"));
   }
 
+  private JSONObject addRoleJSON(Set<Attribute> attrs) {
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("className", getStringAttr(attrs, "className", "com.liferay.portal.kernel.model.Role"));
+    params.put("classPK", getAttr(attrs, "classPK", Integer.class, 0));
+    params.put("name", getStringAttr(attrs, "name", ""));
+    params.put("titleMap", JSONObject.NULL);
+    params.put("descriptionMap", JSONObject.NULL);
+    params.put("type", getAttr(attrs, "type", Integer.class, 0));
+    params.put("subtype", getStringAttr(attrs, "subtype", ""));
+    cmd.put("/role/add-role", params);
+    LOG.ok(">>> addRole JSON {0}", cmd.toString());
+    return cmd;
+  }
+
+  private void updateRoleJSON(JSONArray cmds, Set<Attribute> attrs, Uid uid) {
+    JSONObject role = getRoleById(uid);
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("roleId", new Integer(uid.getUidValue()));
+    putJSONAttr(params, "name", role, attrs, "");
+    params.put("titleMap", JSONObject.NULL);
+    params.put("descriptionMap", JSONObject.NULL);
+    putJSONAttr(params, "subtype", role, attrs, 0);
+    cmd.put("/role/update-role", params);
+    LOG.ok(">>> updateUserEntity JSON {0}", cmd.toString());
+    cmds.put(cmd);
+    LOG.ok(">>> updateUserEntity roleids JSON {0}", getStringAttr(attrs, "roleIds", "NO ROLES"));
+  }
+
   private JSONObject getUserById(Uid uid) {
     try {
       HttpPost request = new HttpPost(getURIBuilder().build());
@@ -499,6 +573,26 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
       JSONObject user = new JSONObject(result);
       user.put("roleIds", getUserRoleIds(uid));
       return user;
+    } catch (Exception e) {
+      throw new ConnectorIOException(e.getMessage(), e);
+    }
+  }
+
+  private JSONObject getRoleById(Uid uid) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("roleId", uid.getUidValue());
+      cmd.put("/role/get-role", params);
+      LOG.ok(">>> getRoleById JSON {0}", cmd.toString());
+      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+      CloseableHttpResponse response = getHttpClient().execute(request);
+      LOG.ok(">>> getRoleById {0}", response.getEntity());
+      String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+      processResponseErrors(response);
+      JSONObject role = new JSONObject(result);
+      return role;
     } catch (Exception e) {
       throw new ConnectorIOException(e.getMessage(), e);
     }
