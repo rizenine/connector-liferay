@@ -397,7 +397,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         String result = EntityUtils.toString(response.getEntity(), "UTF-8");
 
         JSONObject jors = new JSONObject(result);
-        LOG.ok(">>> create json {0}", jors);
+        LOG.ok(">>> create json result {0}", jors);
         uid = new Uid(jors.getString("roleId"));
         processResponseErrors(response);
       } else {
@@ -474,7 +474,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     params.put("jobTitle", getStringAttr(attrs, "jobTitle", ""));
     params.put("groupIds", JSONObject.NULL);
     params.put("organizationIds", JSONObject.NULL);
-    params.put("roleIds", getAttr(attrs, "roleIds", JSONArray.class, new JSONArray()));
+    params.put("roleIds", getMultiValAttr(attrs, "roleIds", null));
     params.put("userGroupIds", JSONObject.NULL);
     params.put("sendEmail", getAttr(attrs, "sendEmail", Boolean.class, false));
     cmd.put("/user/add-user", params);
