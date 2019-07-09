@@ -21,6 +21,7 @@ Association of roles example:
              <intent>role</intent>
          </construction>
      </inducement>
+
      <inducement>
          <construction>
              <resourceRef oid="<Your OID>" relation="org:default" type="c:ResourceType">
