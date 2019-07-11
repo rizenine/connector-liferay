@@ -348,6 +348,30 @@ public abstract class AbstractRestConnector<C extends AbstractRestConfiguration>
         return defaultVal;
     }
 
+    protected JSONArray getMultiValAttrJSON(Set<Attribute> attributes, String attrName, JSONArray defaultVal) {
+        for (Attribute attr : attributes) {
+            if (attrName.equals(attr.getName())) {
+                List<Object> vals = attr.getValue();
+                if (vals == null || vals.isEmpty()) {
+                    // set empty value
+                    return new JSONArray();
+                }
+                String[] ret = new String[vals.size()];
+                for (int i = 0; i < vals.size(); i++) {
+                    Object valAsObject = vals.get(i);
+                    if (valAsObject == null)
+                        throw new InvalidAttributeValueException("Value " + null + " must be not null for attribute " + attrName);
+
+                    String val = (String) valAsObject;
+                    ret[i] = val;
+                }
+                return new JSONArray(ret);
+            }
+        }
+        // set default value when attrName not in changed attributes
+        return defaultVal;
+    }
+
 
     protected <T> T addAttr(ConnectorObjectBuilder builder, String attrName, T attrVal) {
         if (attrVal != null) {
@@ -356,8 +380,8 @@ public abstract class AbstractRestConnector<C extends AbstractRestConfiguration>
         return attrVal;
     }
 
-    protected void putJSONAttr(JSONObject obj, String attrName, JSONObject user, Set<Attribute> attr, Object defaultVal) {
-      Object o = getAttr(attr, attrName, Object.class);
+    protected void putJSONAttr(JSONObject obj, String attrName, JSONObject user, Set<Attribute> attributes, Object defaultVal) {
+      Object o = getAttr(attributes, attrName, Object.class);
       if(o == null) {
         if(user.isNull(attrName)){
           obj.put(attrName, defaultVal);

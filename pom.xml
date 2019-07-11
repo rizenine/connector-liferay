@@ -26,13 +26,14 @@
         <relativePath></relativePath>
     </parent>
 
+    <groupId>edu.vinu.polygon</groupId>
     <artifactId>connector-liferay</artifactId>
     <version>1.0</version>
     <packaging>jar</packaging>
 
-    <name>Liferay REST Connector</name>
+    <name>Liferay Connector</name>
 
-    <description>Liferay Rest connector for Midpoint.</description>
+    <description>Liferay connector for Midpoint.</description>
 
     <url>https://www.vinu.edu</url>
 

@@ -474,7 +474,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     params.put("jobTitle", getStringAttr(attrs, "jobTitle", ""));
     params.put("groupIds", JSONObject.NULL);
     params.put("organizationIds", JSONObject.NULL);
-    params.put("roleIds", getMultiValAttr(attrs, "roleIds", null));
+    params.put("roleIds",  getMultiValAttrJSON(attrs, "roleIds", null));
     params.put("userGroupIds", JSONObject.NULL);
     params.put("sendEmail", getAttr(attrs, "sendEmail", Boolean.class, false));
     cmd.put("/user/add-user", params);
@@ -518,13 +518,12 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     putJSONAttr(params, "jobTitle", user, attrs, "");
     params.put("groupIds", JSONObject.NULL);
     params.put("organizationIds", JSONObject.NULL);
-    putJSONAttr(params, "roleIds", user, attrs, JSONObject.NULL);
+    params.put("roleIds",  getMultiValAttrJSON(attrs, "roleIds", user.getJSONArray("roleIds")));
     params.put("userGroupRoles", JSONObject.NULL);
     params.put("userGroupIds", JSONObject.NULL);
     cmd.put("/user/update-user", params);
     LOG.ok(">>> updateUserEntity JSON {0}", cmd.toString());
     cmds.put(cmd);
-    LOG.ok(">>> updateUserEntity roleids JSON {0}", getStringAttr(attrs, "roleIds", "NO ROLES"));
   }
 
   private JSONObject addRoleJSON(Set<Attribute> attrs) {
