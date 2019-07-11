@@ -26,7 +26,6 @@
         <relativePath></relativePath>
     </parent>
 
-    <groupId>edu.vinu.polygon</groupId>
     <artifactId>connector-liferay</artifactId>
     <version>1.0</version>
     <packaging>jar</packaging>
