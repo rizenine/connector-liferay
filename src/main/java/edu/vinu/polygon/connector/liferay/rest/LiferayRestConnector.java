@@ -76,6 +76,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 
 	public static final String ACCOUNT_OBJECT_CLASS = "Account";
 	public static final String ROLE_OBJECT_CLASS = "Role";
+	public static final String USERGROUP_OBJECT_CLASS = "UserGroup";
 
   @Override
   public void test() {
@@ -91,6 +92,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     SchemaBuilder schemaBuilder = new SchemaBuilder(LiferayRestConnector.class);
 		schemaBuilder.defineObjectClass(prepareAccountClass().build());
 		schemaBuilder.defineObjectClass(prepareRoleClass().build());
+		schemaBuilder.defineObjectClass(prepareUserGroupClass().build());
     LOG.ok(">>> schema finished");
     return schemaBuilder.build();
   }
@@ -121,7 +123,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("roleIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupRoles", String.class, EnumSet.of(Flags.MULTIVALUED)));
-    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("sendEmail", Boolean.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userId", Integer.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("reminderQueryQuestion", String.class));
@@ -184,6 +186,26 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("mvccVersion", String.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("titleCurrentValue", String.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("createDate", Integer.class));
+    return ocBuilder;
+	}
+
+
+	private ObjectClassInfoBuilder prepareUserGroupClass(){
+    ObjectClassInfoBuilder ocBuilder = new ObjectClassInfoBuilder();
+    ocBuilder.setType(USERGROUP_OBJECT_CLASS);
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("name", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("description", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("addedByLDAPImport", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("companyId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("createDate", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("externalReferenceCode", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("modifiedDate", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("mvccVersion", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("parentUserGroupId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userName", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("uuid", String.class));
     return ocBuilder;
 	}
 
@@ -254,6 +276,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           addJSONAddr(builder, u, "userId");
           addJSONAddr(builder, u, "uuid");
           builder.addAttribute("roleIds", getUserRoleIds(uid));
+          builder.addAttribute("userGroupIds", getUserGroupIds(uid));
           handler.handle(builder.build());
         }
         processResponseErrors(response);
@@ -308,6 +331,48 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         throw new IllegalArgumentException(e.getMessage(), e);
       }
     }
+
+    if (oc.is(USERGROUP_OBJECT_CLASS)) {
+      try{
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("companyId", getConfiguration().getCompanyId());
+        cmd.put("/usergroup/get-user-groups", params);
+        LOG.ok(">>> executeQuery usergroup JSON {0}", cmd.toString());
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        LOG.ok(">>> executeQuery usergroup response.getEntity {0}", response.getEntity());
+        JSONArray usergroups = new JSONArray(EntityUtils.toString(response.getEntity()));
+
+        LOG.ok(">>> executeQuery usergroups {0}", usergroups);
+
+        for (Object o : usergroups) {
+          ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
+          JSONObject u = (JSONObject) o;
+          builder.setUid(u.getString("userGroupId"));
+          builder.setName(u.getString("name"));
+          addJSONAddr(builder, u, "name");
+          addJSONAddr(builder, u, "userGroupId");
+          addJSONAddr(builder, u, "addedByLDAPImport");
+          addJSONAddr(builder, u, "companyId");
+          addJSONAddr(builder, u, "createDate");
+          addJSONAddr(builder, u, "description");
+          addJSONAddr(builder, u, "externalReferenceCode");
+          addJSONAddr(builder, u, "modifiedDate");
+          addJSONAddr(builder, u, "mvccVersion");
+          addJSONAddr(builder, u, "parentUserGroupId");
+          addJSONAddr(builder, u, "userId");
+          addJSONAddr(builder, u, "userName");
+          addJSONAddr(builder, u, "uuid");
+          handler.handle(builder.build());
+        }
+        processResponseErrors(response);
+        LOG.ok(">>> executeQuery finished");
+      } catch (Exception e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
+    }
   }
 
   @Override
@@ -330,6 +395,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     if (oc.is(ROLE_OBJECT_CLASS)) {
       return createOrUpdateRole(oc, null, attrs, oo);
     }
+
+    if (oc.is(USERGROUP_OBJECT_CLASS)) {
+      return createOrUpdateUserGroup(oc, null, attrs, oo);
+    }
     return null;
   }
 
@@ -346,6 +415,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 
     if (oc.is(ROLE_OBJECT_CLASS)) {
       return createOrUpdateRole(oc, uid, attrs, oo);
+    }
+
+    if (oc.is(USERGROUP_OBJECT_CLASS)) {
+      return createOrUpdateUserGroup(oc, uid, attrs, oo);
     }
     return null;
   }
@@ -412,6 +485,34 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     return uid;
   }
 
+  public Uid createOrUpdateUserGroup(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONArray cmds = new JSONArray();
+      if(uid == null) {
+        JSONObject usergroup = addUserGroupJSON(attrs);
+        LOG.ok(">>> create JSON {0}",usergroup.toString());
+        request.setEntity(new StringEntity(usergroup.toString(), "UTF-8"));
+
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+
+        JSONObject jors = new JSONObject(result);
+        LOG.ok(">>> create json result {0}", jors);
+        uid = new Uid(jors.getString("userGroupId"));
+        processResponseErrors(response);
+      } else {
+        updateUserGroupJSON(cmds, attrs, uid);
+        LOG.ok(">>> update JSON {0}", cmds.toString());
+        request.setEntity(new StringEntity(cmds.toString(), "UTF-8"));
+        processResponseErrors(getHttpClient().execute(request));
+      }
+    } catch (Exception e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
+    return uid;
+  }
+
   @Override
   public void delete(ObjectClass oc, Uid uid, OperationOptions oo) {
     LOG.ok(">>> update ObjectClass {0}", oc);
@@ -440,6 +541,21 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         JSONObject params = new JSONObject();
         params.put("roleId", new Integer(uid.getUidValue()));
         cmd.put("/role/delete-role", params);
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        processResponseErrors(getHttpClient().execute(request));
+      } catch (Exception e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
+    }
+
+    if (oc.is(USERGROUP_OBJECT_CLASS)) {
+      try {
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        LOG.ok(">>> deleteUserGroup UID {0}", uid.getUidValue());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("userGroupId", new Integer(uid.getUidValue()));
+        cmd.put("/usergroup/delete-user-group", params);
         request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
         processResponseErrors(getHttpClient().execute(request));
       } catch (Exception e) {
@@ -475,7 +591,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     params.put("groupIds", JSONObject.NULL);
     params.put("organizationIds", JSONObject.NULL);
     params.put("roleIds",  getMultiValAttrJSON(attrs, "roleIds", null));
-    params.put("userGroupIds", JSONObject.NULL);
+    params.put("userGroupIds",  getMultiValAttrJSON(attrs, "userGroupIds", null));
     params.put("sendEmail", getAttr(attrs, "sendEmail", Boolean.class, false));
     cmd.put("/user/add-user", params);
     LOG.ok(">>> addUser JSON {0}", cmd.toString());
@@ -520,7 +636,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     params.put("organizationIds", JSONObject.NULL);
     params.put("roleIds",  getMultiValAttrJSON(attrs, "roleIds", user.getJSONArray("roleIds")));
     params.put("userGroupRoles", JSONObject.NULL);
-    params.put("userGroupIds", JSONObject.NULL);
+    params.put("userGroupIds",  getMultiValAttrJSON(attrs, "userGroupIds", user.getJSONArray("userGroupIds")));
     cmd.put("/user/update-user", params);
     LOG.ok(">>> updateUserEntity JSON {0}", cmd.toString());
     cmds.put(cmd);
@@ -553,7 +669,28 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     cmd.put("/role/update-role", params);
     LOG.ok(">>> updateUserEntity JSON {0}", cmd.toString());
     cmds.put(cmd);
-    LOG.ok(">>> updateUserEntity roleids JSON {0}", getStringAttr(attrs, "roleIds", "NO ROLES"));
+  }
+
+  private JSONObject addUserGroupJSON(Set<Attribute> attrs) {
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("name", getStringAttr(attrs, "name", ""));
+    params.put("description", getStringAttr(attrs, "description", ""));
+    cmd.put("/usergroup/add-user-group", params);
+    LOG.ok(">>> addUserGroupJSON JSON {0}", cmd.toString());
+    return cmd;
+  }
+
+  private void updateUserGroupJSON(JSONArray cmds, Set<Attribute> attrs, Uid uid) {
+    JSONObject usergroup = getUserGroupById(uid);
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("userGroupId", new Integer(uid.getUidValue()));
+    putJSONAttr(params, "name", usergroup, attrs, "");
+    putJSONAttr(params, "description", usergroup, attrs, "");
+    cmd.put("/usergroup/update-user-group", params);
+    LOG.ok(">>> updateUserGroupJSON JSON {0}", cmd.toString());
+    cmds.put(cmd);
   }
 
   private JSONObject getUserById(Uid uid) {
@@ -590,8 +727,26 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
       LOG.ok(">>> getRoleById {0}", response.getEntity());
       String result = EntityUtils.toString(response.getEntity(), "UTF-8");
       processResponseErrors(response);
-      JSONObject role = new JSONObject(result);
-      return role;
+      return new JSONObject(result);
+    } catch (Exception e) {
+      throw new ConnectorIOException(e.getMessage(), e);
+    }
+  }
+
+  private JSONObject getUserGroupById(Uid uid) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("userGroupId", uid.getUidValue());
+      cmd.put("/usergroup/get-user-group", params);
+      LOG.ok(">>> getUserGroupById JSON {0}", cmd.toString());
+      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+      CloseableHttpResponse response = getHttpClient().execute(request);
+      LOG.ok(">>> getUserGroupById {0}", response.getEntity());
+      String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+      processResponseErrors(response);
+      return new JSONObject(result);
     } catch (Exception e) {
       throw new ConnectorIOException(e.getMessage(), e);
     }
@@ -617,6 +772,31 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
       }
       LOG.ok(">>> getUserRoles roleIds {0}", roleIds);
       return roleIds;
+    } catch (Exception e) {
+      throw new ConnectorIOException(e.getMessage(), e);
+    }
+  }
+
+  private ArrayList<String> getUserGroupIds(Uid uid) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("userId", uid.getUidValue());
+      cmd.put("/usergroup/get-user-user-groups", params);
+      LOG.ok(">>> getUserGroupIds JSON {0}", cmd.toString());
+      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+      CloseableHttpResponse response = getHttpClient().execute(request);
+      JSONArray result = new JSONArray(EntityUtils.toString(response.getEntity(), "UTF-8"));
+      processResponseErrors(response);
+
+      ArrayList<String> usergroupIds = new ArrayList<String>();
+      for (Object o : result) {
+        JSONObject usergroup = (JSONObject) o;
+        usergroupIds.add(usergroup.getString("userGroupId"));
+      }
+      LOG.ok(">>> getUserGroupIds usergroupIds {0}", usergroupIds);
+      return usergroupIds;
     } catch (Exception e) {
       throw new ConnectorIOException(e.getMessage(), e);
     }

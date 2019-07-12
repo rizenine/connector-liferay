@@ -6,7 +6,9 @@ This is a work-in-progress REST connector for [Evolveum Midpoint](https://wiki.e
 
  - Add/Update/Delete User
  - Add/Update/Delete Roles
+ - Add/Update/Delete User Groups
  - Role associations
+ - User Group associations
 
 
 
