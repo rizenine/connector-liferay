@@ -77,6 +77,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 	public static final String ACCOUNT_OBJECT_CLASS = "Account";
 	public static final String ROLE_OBJECT_CLASS = "Role";
 	public static final String USERGROUP_OBJECT_CLASS = "UserGroup";
+	public static final String WEBSITE_OBJECT_CLASS = "Website";
 
   @Override
   public void test() {
@@ -93,6 +94,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 		schemaBuilder.defineObjectClass(prepareAccountClass().build());
 		schemaBuilder.defineObjectClass(prepareRoleClass().build());
 		schemaBuilder.defineObjectClass(prepareUserGroupClass().build());
+		schemaBuilder.defineObjectClass(prepareWebsiteClass().build());
     LOG.ok(">>> schema finished");
     return schemaBuilder.build();
   }
@@ -165,7 +167,6 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     return ocBuilder;
 	}
 
-
 	private ObjectClassInfoBuilder prepareRoleClass(){
     ObjectClassInfoBuilder ocBuilder = new ObjectClassInfoBuilder();
     ocBuilder.setType(ROLE_OBJECT_CLASS);
@@ -189,7 +190,6 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     return ocBuilder;
 	}
 
-
 	private ObjectClassInfoBuilder prepareUserGroupClass(){
     ObjectClassInfoBuilder ocBuilder = new ObjectClassInfoBuilder();
     ocBuilder.setType(USERGROUP_OBJECT_CLASS);
@@ -206,6 +206,17 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userId", String.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userName", String.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("uuid", String.class));
+    return ocBuilder;
+	}
+
+	private ObjectClassInfoBuilder prepareWebsiteClass(){
+    ObjectClassInfoBuilder ocBuilder = new ObjectClassInfoBuilder();
+    ocBuilder.setType(WEBSITE_OBJECT_CLASS);
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("className", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("classPK", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("url", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("typeId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("primary", Boolean.class));
     return ocBuilder;
 	}
 
@@ -373,6 +384,37 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         throw new IllegalArgumentException(e.getMessage(), e);
       }
     }
+
+    if (oc.is(WEBSITE_OBJECT_CLASS)) {
+      try{
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("className", "com.liferay.portal.kernel.model.Website");
+        params.put("classPK", 0);
+        cmd.put("/website/get-websites", params);
+        LOG.ok(">>> executeQuery website JSON {0}", cmd.toString());
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        LOG.ok(">>> executeQuery website response.getEntity {0}", response.getEntity());
+        JSONArray websites = new JSONArray(EntityUtils.toString(response.getEntity()));
+
+        LOG.ok(">>> executeQuery websites {0}", websites);
+
+        for (Object o : websites) {
+          ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
+          JSONObject u = (JSONObject) o;
+          builder.setUid(u.getString("websiteId"));
+          builder.setName(u.getString("websiteId"));
+          addJSONAddr(builder, u, "websiteId");
+          handler.handle(builder.build());
+        }
+        processResponseErrors(response);
+        LOG.ok(">>> executeQuery finished");
+      } catch (Exception e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
+    }
   }
 
   @Override
@@ -399,6 +441,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     if (oc.is(USERGROUP_OBJECT_CLASS)) {
       return createOrUpdateUserGroup(oc, null, attrs, oo);
     }
+
+    if (oc.is(WEBSITE_OBJECT_CLASS)) {
+      return createOrUpdateWebsite(oc, null, attrs, oo);
+    }
     return null;
   }
 
@@ -419,6 +465,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 
     if (oc.is(USERGROUP_OBJECT_CLASS)) {
       return createOrUpdateUserGroup(oc, uid, attrs, oo);
+    }
+
+    if (oc.is(WEBSITE_OBJECT_CLASS)) {
+      return createOrUpdateWebsite(oc, null, attrs, oo);
     }
     return null;
   }
@@ -503,6 +553,34 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         processResponseErrors(response);
       } else {
         updateUserGroupJSON(cmds, attrs, uid);
+        LOG.ok(">>> update JSON {0}", cmds.toString());
+        request.setEntity(new StringEntity(cmds.toString(), "UTF-8"));
+        processResponseErrors(getHttpClient().execute(request));
+      }
+    } catch (Exception e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
+    return uid;
+  }
+
+  public Uid createOrUpdateWebsite(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONArray cmds = new JSONArray();
+      if(uid == null) {
+        JSONObject website = addWebsiteJSON(attrs);
+        LOG.ok(">>> create JSON {0}",website.toString());
+        request.setEntity(new StringEntity(website.toString(), "UTF-8"));
+
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+
+        JSONObject jors = new JSONObject(result);
+        LOG.ok(">>> create json result {0}", jors);
+        uid = new Uid(jors.getString("userGroupId"));
+        processResponseErrors(response);
+      } else {
+        updateWebsiteJSON(cmds, attrs, uid);
         LOG.ok(">>> update JSON {0}", cmds.toString());
         request.setEntity(new StringEntity(cmds.toString(), "UTF-8"));
         processResponseErrors(getHttpClient().execute(request));
@@ -693,6 +771,32 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     cmds.put(cmd);
   }
 
+  private JSONObject addWebsiteJSON(Set<Attribute> attrs) {
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("className", getStringAttr(attrs, "className", "com.liferay.portal.kernel.model.Website"));
+    params.put("classPK", getAttr(attrs, "classPK", Integer.class, 0));
+    params.put("url", getStringAttr(attrs, "url", ""));
+    params.put("typeId", getAttr(attrs, "typeId", Integer.class, 0));
+    params.put("primary", getAttr(attrs, "primary", Boolean.class, false));
+    cmd.put("/website/add-website", params);
+    LOG.ok(">>> addWebsiteJSON JSON {0}", cmd.toString());
+    return cmd;
+  }
+
+  private void updateWebsiteJSON(JSONArray cmds, Set<Attribute> attrs, Uid uid) {
+    JSONObject website = getWebsiteById(uid);
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("websiteId", new Integer(uid.getUidValue()));
+    putJSONAttr(params, "url", website, attrs, "");
+    putJSONAttr(params, "typeId", website, attrs, 0);
+    putJSONAttr(params, "primary", website, attrs, false);
+    cmd.put("/website/update-website", params);
+    LOG.ok(">>> updateWebsiteJSON JSON {0}", cmd.toString());
+    cmds.put(cmd);
+  }
+
   private JSONObject getUserById(Uid uid) {
     try {
       HttpPost request = new HttpPost(getURIBuilder().build());
@@ -708,6 +812,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
       processResponseErrors(response);
       JSONObject user = new JSONObject(result);
       user.put("roleIds", getUserRoleIds(uid));
+      user.put("userGroupIds", getUserGroupIds(uid));
       return user;
     } catch (Exception e) {
       throw new ConnectorIOException(e.getMessage(), e);
@@ -744,6 +849,25 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
       request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
       CloseableHttpResponse response = getHttpClient().execute(request);
       LOG.ok(">>> getUserGroupById {0}", response.getEntity());
+      String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+      processResponseErrors(response);
+      return new JSONObject(result);
+    } catch (Exception e) {
+      throw new ConnectorIOException(e.getMessage(), e);
+    }
+  }
+
+  private JSONObject getWebsiteById(Uid uid) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("websiteId", uid.getUidValue());
+      cmd.put("/website/get-website", params);
+      LOG.ok(">>> getWebsiteById JSON {0}", cmd.toString());
+      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+      CloseableHttpResponse response = getHttpClient().execute(request);
+      LOG.ok(">>> getWebsiteById {0}", response.getEntity());
       String result = EntityUtils.toString(response.getEntity(), "UTF-8");
       processResponseErrors(response);
       return new JSONObject(result);

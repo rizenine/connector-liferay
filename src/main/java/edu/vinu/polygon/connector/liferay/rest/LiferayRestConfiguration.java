@@ -25,6 +25,7 @@ import org.identityconnectors.framework.spi.ConfigurationProperty;
 public class LiferayRestConfiguration extends AbstractRestConfiguration {
 
   private String companyId;
+  private String parentOrganizationId;
 
   @ConfigurationProperty(displayMessageKey = "rest.config.companyId", helpMessageKey = "rest.config.companyId.help")
   public String getCompanyId() {
@@ -33,6 +34,15 @@ public class LiferayRestConfiguration extends AbstractRestConfiguration {
 
     public void setCompanyId(String companyId) {
         this.companyId = companyId;
+    }
+
+  @ConfigurationProperty(displayMessageKey = "rest.config.parentOrganizationId", helpMessageKey = "rest.config.parentOrganizationId.help")
+  public String getParentOrganizationId() {
+        return parentOrganizationId;
+    }
+
+    public void setParentOrganizationId(String parentOrganizationId) {
+        this.parentOrganizationId = parentOrganizationId;
     }
 
 }
