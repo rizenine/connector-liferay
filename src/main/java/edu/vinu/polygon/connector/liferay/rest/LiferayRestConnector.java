@@ -78,6 +78,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 	public static final String ROLE_OBJECT_CLASS = "Role";
 	public static final String USERGROUP_OBJECT_CLASS = "UserGroup";
 	public static final String WEBSITE_OBJECT_CLASS = "Website";
+	public static final String ORGANIZATION_OBJECT_CLASS = "Organization";
 
   @Override
   public void test() {
@@ -95,6 +96,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 		schemaBuilder.defineObjectClass(prepareRoleClass().build());
 		schemaBuilder.defineObjectClass(prepareUserGroupClass().build());
 		schemaBuilder.defineObjectClass(prepareWebsiteClass().build());
+		schemaBuilder.defineObjectClass(prepareOrganizationClass().build());
     LOG.ok(">>> schema finished");
     return schemaBuilder.build();
   }
@@ -121,9 +123,8 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("birthdayYear", Integer.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("jobTitle", String.class));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("groupIds", String.class, EnumSet.of(Flags.MULTIVALUED, Flags.REQUIRED, Flags.NOT_READABLE, Flags.NOT_RETURNED_BY_DEFAULT)));
-    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("organizationIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("organizationIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("roleIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
-    // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupRoles", String.class, EnumSet.of(Flags.MULTIVALUED)));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("sendEmail", Boolean.class));
@@ -217,6 +218,32 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("url", String.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("typeId", Integer.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("primary", Boolean.class));
+    return ocBuilder;
+	}
+
+	private ObjectClassInfoBuilder prepareOrganizationClass(){
+    ObjectClassInfoBuilder ocBuilder = new ObjectClassInfoBuilder();
+    ocBuilder.setType(ORGANIZATION_OBJECT_CLASS);
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("parentOrganizationId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("name", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("type", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("regionId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("countryId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("statusId", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("comments", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("site", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("companyId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("createDate", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("externalReferenceCode", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("logoId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("modifiedDate", Integer.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("mvccVersion", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("organizationId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("recursable", Boolean.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("treePath", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userId", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userName", String.class));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("uuid", String.class));
     return ocBuilder;
 	}
 
@@ -415,6 +442,55 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         throw new IllegalArgumentException(e.getMessage(), e);
       }
     }
+
+    if (oc.is(ORGANIZATION_OBJECT_CLASS)) {
+      try{
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("companyId", getConfiguration().getCompanyId());
+        params.put("parentOrganizationId", getConfiguration().getParentOrganizationId());
+        cmd.put("/organization/get-organizations", params);
+        LOG.ok(">>> executeQuery organization JSON {0}", cmd.toString());
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        LOG.ok(">>> executeQuery organization response.getEntity {0}", response.getEntity());
+        JSONArray organizations = new JSONArray(EntityUtils.toString(response.getEntity()));
+
+        LOG.ok(">>> executeQuery organizations {0}", organizations);
+
+        for (Object o : organizations) {
+          ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
+          JSONObject u = (JSONObject) o;
+          builder.setUid(u.getString("organizationId"));
+          builder.setName(u.getString("name"));
+          addJSONAddr(builder, u, "comments");
+          addJSONAddr(builder, u, "companyId");
+          addJSONAddr(builder, u, "countryId");
+          addJSONAddr(builder, u, "createDate");
+          addJSONAddr(builder, u, "externalReferenceCode");
+          addJSONAddr(builder, u, "logoId");
+          addJSONAddr(builder, u, "modifiedDate");
+          addJSONAddr(builder, u, "mvccVersion");
+          addJSONAddr(builder, u, "name");
+          addJSONAddr(builder, u, "organizationId");
+          addJSONAddr(builder, u, "parentOrganizationId");
+          addJSONAddr(builder, u, "recursable");
+          addJSONAddr(builder, u, "regionId");
+          addJSONAddr(builder, u, "statusId");
+          addJSONAddr(builder, u, "treePath");
+          addJSONAddr(builder, u, "type");
+          addJSONAddr(builder, u, "userId");
+          addJSONAddr(builder, u, "userName");
+          addJSONAddr(builder, u, "uuid");
+          handler.handle(builder.build());
+        }
+        processResponseErrors(response);
+        LOG.ok(">>> executeQuery finished");
+      } catch (Exception e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
+    }
   }
 
   @Override
@@ -445,6 +521,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     if (oc.is(WEBSITE_OBJECT_CLASS)) {
       return createOrUpdateWebsite(oc, null, attrs, oo);
     }
+
+    if (oc.is(ORGANIZATION_OBJECT_CLASS)) {
+      return createOrUpdateOrganization(oc, null, attrs, oo);
+    }
     return null;
   }
 
@@ -469,6 +549,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 
     if (oc.is(WEBSITE_OBJECT_CLASS)) {
       return createOrUpdateWebsite(oc, null, attrs, oo);
+    }
+
+    if (oc.is(ORGANIZATION_OBJECT_CLASS)) {
+      return createOrUpdateOrganization(oc, null, attrs, oo);
     }
     return null;
   }
@@ -591,6 +675,34 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     return uid;
   }
 
+  public Uid createOrUpdateOrganization(ObjectClass oc, Uid uid, Set<Attribute> attrs, OperationOptions oo) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONArray cmds = new JSONArray();
+      if(uid == null) {
+        JSONObject organization = addOrganizationJSON(attrs);
+        LOG.ok(">>> create JSON {0}",organization.toString());
+        request.setEntity(new StringEntity(organization.toString(), "UTF-8"));
+
+        CloseableHttpResponse response = getHttpClient().execute(request);
+        String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+
+        JSONObject jors = new JSONObject(result);
+        LOG.ok(">>> create json result {0}", jors);
+        uid = new Uid(jors.getString("organizationId"));
+        processResponseErrors(response);
+      } else {
+        updateOrganizationJSON(cmds, attrs, uid);
+        LOG.ok(">>> update JSON {0}", cmds.toString());
+        request.setEntity(new StringEntity(cmds.toString(), "UTF-8"));
+        processResponseErrors(getHttpClient().execute(request));
+      }
+    } catch (Exception e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
+    return uid;
+  }
+
   @Override
   public void delete(ObjectClass oc, Uid uid, OperationOptions oo) {
     LOG.ok(">>> update ObjectClass {0}", oc);
@@ -634,6 +746,38 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         JSONObject params = new JSONObject();
         params.put("userGroupId", new Integer(uid.getUidValue()));
         cmd.put("/usergroup/delete-user-group", params);
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        processResponseErrors(getHttpClient().execute(request));
+      } catch (Exception e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
+      LOG.ok(">>> delete finished");
+    }
+
+    if (oc.is(WEBSITE_OBJECT_CLASS)) {
+      try {
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        LOG.ok(">>> deleteWebsite UID {0}", uid.getUidValue());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("websiteId", new Integer(uid.getUidValue()));
+        cmd.put("/website/delete-website", params);
+        request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+        processResponseErrors(getHttpClient().execute(request));
+      } catch (Exception e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
+      LOG.ok(">>> delete finished");
+    }
+
+    if (oc.is(ORGANIZATION_OBJECT_CLASS)) {
+      try {
+        HttpPost request = new HttpPost(getURIBuilder().build());
+        LOG.ok(">>> deleteOrganization UID {0}", uid.getUidValue());
+        JSONObject cmd = new JSONObject();
+        JSONObject params = new JSONObject();
+        params.put("organizationId", new Integer(uid.getUidValue()));
+        cmd.put("/organization/delete-organization", params);
         request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
         processResponseErrors(getHttpClient().execute(request));
       } catch (Exception e) {
@@ -797,6 +941,40 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     cmds.put(cmd);
   }
 
+  private JSONObject addOrganizationJSON(Set<Attribute> attrs) {
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("parentOrganizationId", getAttr(attrs, "parentOrganizationId", Integer.class, 0));
+    params.put("name", getAttr(attrs, "name", String.class, ""));
+    params.put("type", getAttr(attrs, "type", String.class, ""));
+    params.put("regionId", getAttr(attrs, "regionId", Integer.class, 0));
+    params.put("countryId", getAttr(attrs, "countryId", Integer.class, 0));
+    params.put("statusId", getAttr(attrs, "statusId", Integer.class, 0));
+    params.put("comments", getAttr(attrs, "comments", String.class, ""));
+    params.put("site", getAttr(attrs, "site", Boolean.class, false));
+    cmd.put("/organization/add-organization", params);
+    LOG.ok(">>> addOrganizationJSON JSON {0}", cmd.toString());
+    return cmd;
+  }
+
+  private void updateOrganizationJSON(JSONArray cmds, Set<Attribute> attrs, Uid uid) {
+    JSONObject organization = getOrganizationById(uid);
+    JSONObject cmd = new JSONObject();
+    JSONObject params = new JSONObject();
+    params.put("organizationId", new Integer(uid.getUidValue()));
+    putJSONAttr(params, "parentOrganizationId", organization, attrs, 0);
+    putJSONAttr(params, "name", organization, attrs, "");
+    putJSONAttr(params, "type", organization, attrs, "");
+    putJSONAttr(params, "regionId", organization, attrs, 0);
+    putJSONAttr(params, "countryId", organization, attrs, 0);
+    putJSONAttr(params, "statusId", organization, attrs, 0);
+    putJSONAttr(params, "comments", organization, attrs, "");
+    putJSONAttr(params, "site", organization, attrs, false);
+    cmd.put("/organization/update-organization", params);
+    LOG.ok(">>> updateOrganizationJSON JSON {0}", cmd.toString());
+    cmds.put(cmd);
+  }
+
   private JSONObject getUserById(Uid uid) {
     try {
       HttpPost request = new HttpPost(getURIBuilder().build());
@@ -868,6 +1046,25 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
       request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
       CloseableHttpResponse response = getHttpClient().execute(request);
       LOG.ok(">>> getWebsiteById {0}", response.getEntity());
+      String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+      processResponseErrors(response);
+      return new JSONObject(result);
+    } catch (Exception e) {
+      throw new ConnectorIOException(e.getMessage(), e);
+    }
+  }
+
+  private JSONObject getOrganizationById(Uid uid) {
+    try {
+      HttpPost request = new HttpPost(getURIBuilder().build());
+      JSONObject cmd = new JSONObject();
+      JSONObject params = new JSONObject();
+      params.put("organizationId", uid.getUidValue());
+      cmd.put("/organization/get-organization", params);
+      LOG.ok(">>> getOrganizationById JSON {0}", cmd.toString());
+      request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
+      CloseableHttpResponse response = getHttpClient().execute(request);
+      LOG.ok(">>> getOrganizationById {0}", response.getEntity());
       String result = EntityUtils.toString(response.getEntity(), "UTF-8");
       processResponseErrors(response);
       return new JSONObject(result);

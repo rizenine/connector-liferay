@@ -7,12 +7,16 @@ This is a **work-in-progress** REST connector for [Evolveum Midpoint](https://wi
  - Add/Update/Delete User
  - Add/Update/Delete Roles
  - Add/Update/Delete User Groups
+ - Add/Update/Delete Websites
+ - Add/Update/Delete Organizations
  - Role associations
  - User Group associations
+ - Website associations
+ - Organization associations
 
 
 
-Association of roles example:
+Association of roles/user groups/websites/organizations example:
 
  ```XML
      <inducement>
