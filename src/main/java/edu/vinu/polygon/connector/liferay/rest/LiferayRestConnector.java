@@ -36,7 +36,9 @@ import java.nio.charset.Charset;
 import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
 import org.identityconnectors.framework.common.objects.Schema;
 import org.identityconnectors.framework.common.objects.SchemaBuilder;
+
 import org.identityconnectors.framework.spi.ConnectorClass;
+import org.identityconnectors.framework.spi.SearchResultsHandler;
 
 import org.identityconnectors.framework.spi.operations.TestOp;
 import org.identityconnectors.framework.spi.operations.SchemaOp;
@@ -47,9 +49,7 @@ import org.identityconnectors.framework.spi.operations.DeleteOp;
 
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
 import org.identityconnectors.framework.common.objects.AttributeInfo.Flags;
-import org.identityconnectors.framework.common.objects.filter.Filter;
-import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
-import org.identityconnectors.framework.common.objects.filter.FilterTranslator;
+import org.identityconnectors.framework.common.objects.filter.*;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.exceptions.*;
 
@@ -70,7 +70,7 @@ import java.util.Base64.Encoder;
  *
  */
 @ConnectorClass(displayNameKey = "connector.liferay.rest.display", configurationClass = LiferayRestConfiguration.class)
-public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfiguration> implements TestOp, SchemaOp, SearchOp<LiferayFilter>, CreateOp, UpdateOp, DeleteOp {
+public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfiguration> implements TestOp, SchemaOp, SearchOp, CreateOp, UpdateOp, DeleteOp {
 
   private static final Log LOG = Log.getLog(LiferayRestConnector.class);
 
@@ -92,6 +92,9 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   @Override
   public Schema schema() {
     SchemaBuilder schemaBuilder = new SchemaBuilder(LiferayRestConnector.class);
+    schemaBuilder.defineOperationOption(OperationOptionInfoBuilder.buildPageSize(), SearchOp.class);
+    schemaBuilder.defineOperationOption(OperationOptionInfoBuilder.buildPagedResultsOffset(), SearchOp.class);
+    // schemaBuilder.defineOperationOption(OperationOptionInfoBuilder.buildAllowPartialResults(), SearchOp.class);
 		schemaBuilder.defineObjectClass(prepareAccountClass().build());
 		schemaBuilder.defineObjectClass(prepareRoleClass().build());
 		schemaBuilder.defineObjectClass(prepareUserGroupClass().build());
@@ -126,7 +129,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("organizationIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("roleIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
     // ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupRoles", String.class, EnumSet.of(Flags.MULTIVALUED)));
-    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED)));
+    ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userGroupIds", String.class, EnumSet.of(Flags.MULTIVALUED,Flags.NOT_RETURNED_BY_DEFAULT)));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("sendEmail", Boolean.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("userId", Integer.class));
     ocBuilder.addAttributeInfo(AttributeInfoBuilder.build("reminderQueryQuestion", String.class));
@@ -248,10 +251,21 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 	}
 
   @Override
-  public void executeQuery(ObjectClass oc, LiferayFilter filter, ResultsHandler handler, OperationOptions oo) {
+  public void executeQuery(ObjectClass oc, Filter filter, ResultsHandler handler, OperationOptions oo) {
     LOG.ok(">>> executeQuery ObjectClass {0}", oc);
     LOG.ok(">>> executeQuery filter {0}", filter);
     LOG.ok(">>> executeQuery OperationOptions {0}", oo);
+    LOG.ok(">>> executeQuery OperationOptions getOptions {0}", oo.getOptions());
+    LOG.ok(">>> executeQuery OperationOptions getPagedResultsOffset {0}", oo.getPagedResultsOffset());
+    LOG.ok(">>> executeQuery OperationOptions getPageSize {0}", oo.getPageSize());
+    LOG.ok(">>> executeQuery OperationOptions getAllowPartialAttributeValues {0}", oo.getAllowPartialAttributeValues());
+    LOG.ok(">>> executeQuery OperationOptions getAttributesToGet {0}", oo.getAttributesToGet());
+
+    Uid uid = null;
+    if (filter != null && filter.getAttribute() instanceof Uid) {
+      uid = (Uid) filter.getAttribute();
+    }
+
 
     if (oc.is(ACCOUNT_OBJECT_CLASS)) {
       try{
@@ -259,15 +273,20 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
         JSONObject cmd = new JSONObject();
         JSONObject params = new JSONObject();
         params.put("companyId", getConfiguration().getCompanyId());
-        params.put("start", 0);
-        params.put("end", getCompanyUsersCount());
+
+        if(oo.getPageSize() != null) {
+          params.put("start", oo.getPagedResultsOffset());
+          params.put("end", oo.getPagedResultsOffset() + oo.getPageSize());
+        } else {
+          params.put("start", 0);
+          params.put("end", getCompanyUsersCount());
+        }
+
         cmd.put("/user/get-company-users", params);
         LOG.ok(">>> executeQuery account JSON {0}", cmd.toString());
         request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
         CloseableHttpResponse response = getHttpClient().execute(request);
         JSONArray users = new JSONArray(EntityUtils.toString(response.getEntity()));
-
-        LOG.ok(">>> executeQuery users {0}", users);
 
         for (Object o : users) {
           ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
@@ -313,10 +332,22 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           addJSONAddr(builder, u, "timeZoneId");
           addJSONAddr(builder, u, "userId");
           addJSONAddr(builder, u, "uuid");
-          builder.addAttribute("roleIds", getUserRoleIds(uid));
-          builder.addAttribute("userGroupIds", getUserGroupIds(uid));
+
+          if(oo.getAllowPartialAttributeValues() == false) {
+            builder.addAttribute("roleIds", getUserRoleIds(uid));
+            builder.addAttribute("userGroupIds", getUserGroupIds(uid));
+          }
+
           handler.handle(builder.build());
         }
+
+        // NOT WORKING YET
+        // if (handler instanceof SearchResultsHandler) {
+        //   LOG.ok(">>> executeQuery it is SearchResultsHandler class");
+        //   SearchResult searchResult = new SearchResult(null, new Integer(getCompanyUsersCount()));
+        //   ((SearchResultsHandler) handler).handleResult(searchResult);
+        // }
+
         processResponseErrors(response);
         LOG.ok(">>> executeQuery finished");
       } catch (Exception e) {

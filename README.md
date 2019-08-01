@@ -13,6 +13,10 @@ This is a **work-in-progress** REST connector for [Evolveum Midpoint](https://wi
  - User Group associations
  - Website associations
  - Organization associations
+ - Paging added for user account
+
+**Install:**
+ - clone this repo && mvn package
 
 
 

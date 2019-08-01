@@ -26,7 +26,8 @@ public class LiferayRestConfiguration extends AbstractRestConfiguration {
 
   private String companyId;
   private String parentOrganizationId;
-
+  private Integer defaultPageSize = 10;
+  
   @ConfigurationProperty(displayMessageKey = "rest.config.companyId", helpMessageKey = "rest.config.companyId.help")
   public String getCompanyId() {
         return companyId;
@@ -44,5 +45,18 @@ public class LiferayRestConfiguration extends AbstractRestConfiguration {
     public void setParentOrganizationId(String parentOrganizationId) {
         this.parentOrganizationId = parentOrganizationId;
     }
+
+
+
+  @ConfigurationProperty(order = 10, displayMessageKey = "defaultPageSize.display",
+  groupMessageKey = "basic.group", helpMessageKey = "defaultPageSize.help", required = true, confidential = false)
+  public Integer getDefaultPageSize() {
+  return defaultPageSize;
+  }
+
+  public void setDefaultPageSize(Integer defaultPageSize) {
+  this.defaultPageSize = defaultPageSize;
+  }
+
 
 }
