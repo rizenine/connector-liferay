@@ -40,8 +40,7 @@ import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.*;
-import org.identityconnectors.framework.common.objects.Attribute;
-import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
+import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.spi.Configuration;
 import org.identityconnectors.framework.spi.Connector;
 
@@ -397,5 +396,12 @@ public abstract class AbstractRestConnector<C extends AbstractRestConfiguration>
       if(!obj.isNull(attrName)) {
         builder.addAttribute(attrName, obj.get(attrName));
       }
+    }
+
+    protected boolean allowPartialAttribute(OperationOptions options) {
+      if (options == null) {
+        return false;
+      }
+      return options.getAllowPartialAttributeValues() == Boolean.TRUE;
     }
 }

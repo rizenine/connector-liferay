@@ -32,35 +32,19 @@ public class LiferayFilterTranslator extends AbstractFilterTranslator<LiferayFil
     protected LiferayFilter createEqualsExpression(EqualsFilter filter, boolean not) {
         LOG.ok("createEqualsExpression, filter: {0}, not: {1}", filter, not);
 
+        LiferayFilter lf = new LiferayFilter();
+
         if (not) {
-            return null;            // not supported
+          LOG.ok("createEqualsExpression, filter NOT supported");
+          return null;            // not supported
         }
 
         Attribute attr = filter.getAttribute();
-        LOG.ok("attr.getName:  {0}, attr.getValue: {1}, Uid.NAME: {2}, Name.NAME: {3}", attr.getName(), attr.getValue(), Uid.NAME, Name.NAME);
+
         if (Uid.NAME.equals(attr.getName())) {
-            if (attr.getValue() != null && attr.getValue().get(0) != null) {
-                LiferayFilter lf = new LiferayFilter();
-                lf.byUid = String.valueOf(attr.getValue().get(0));
-                LOG.ok("lf.byUid: {0}, attr.getValue().get(0): {1}", lf.byUid, attr.getValue().get(0));
-                return lf;
-            }
-        }
-        else if (Name.NAME.equals(attr.getName())) {
-            if (attr.getValue() != null && attr.getValue().get(0) != null) {
-                LiferayFilter lf = new LiferayFilter();
-                lf.byName = String.valueOf(attr.getValue().get(0));
-                return lf;
-            }
-        }
-        else if (Name.NAME.equals(attr.getName())) {
-            if (attr.getValue() != null && attr.getValue().get(0) != null) {
-                LiferayFilter lf = new LiferayFilter();
-                lf.byEmailAddress = String.valueOf(attr.getValue().get(0));
-                return lf;
-            }
+          lf.byUid = String.valueOf(attr.getValue().get(0));
         }
 
-        return null;            // not supported
+        return lf;            // not supported
     }
 }
