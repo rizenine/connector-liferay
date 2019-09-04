@@ -252,6 +252,11 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   @Override
   public void executeQuery(ObjectClass oc, LiferayFilter filter, ResultsHandler handler, OperationOptions oo) {
 
+        LOG.ok(">>> executeQuery ObjectClass {0}", oc);
+        LOG.ok(">>> executeQuery LiferayFilter {0}", filter);
+        LOG.ok(">>> executeQuery ResultsHandler {0}", handler);
+        LOG.ok(">>> executeQuery OperationOptions {0}", oo);
+
     if (oc.is(ACCOUNT_OBJECT_CLASS)) {
       try{
         JSONArray users = new JSONArray();
@@ -367,9 +372,24 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
           CloseableHttpResponse response = getHttpClient().execute(request);
           roles = new JSONArray(EntityUtils.toString(response.getEntity()));
+
+          if(oo.getPageSize() != null) {
+            int start = oo.getPagedResultsOffset() - 1;
+            int end = start + oo.getPageSize();
+
+            if(end > roles.length()) {
+              end = roles.length();
+            }
+
+            JSONArray roles_page = new JSONArray();
+            for (int i = start; i < end; i++) {
+              roles_page.put(roles.get(i));
+            }
+            roles = roles_page;
+          }
           processResponseErrors(response);
         }
-        
+
         for (Object o : roles) {
           ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
           JSONObject u = (JSONObject) o;
@@ -540,6 +560,8 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 
   @Override
   public LiferayFilterTranslator createFilterTranslator(ObjectClass oc, OperationOptions oo) {
+        LOG.ok(">>> createFilterTranslator ObjectClass {0}", oc);
+        LOG.ok(">>> createFilterTranslator OperationOptions {0}", oo);
   		return new LiferayFilterTranslator();
   }
 
