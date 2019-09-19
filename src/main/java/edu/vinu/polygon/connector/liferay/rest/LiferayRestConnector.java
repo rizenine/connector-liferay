@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2019 Vincennes University
+ * Copyright (c) 2019 Vincennes University
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ import edu.vinu.polygon.connector.liferay.rest.AbstractRestConnector;
 import java.util.Set;
 import java.util.EnumSet;
 import java.util.ArrayList;
+import java.util.List;
 
 import java.util.Base64;
 import java.util.Base64.Encoder;
@@ -70,7 +71,7 @@ import java.util.Base64.Encoder;
  *
  */
 @ConnectorClass(displayNameKey = "connector.liferay.rest.display", configurationClass = LiferayRestConfiguration.class)
-public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfiguration> implements TestOp, SchemaOp, SearchOp<LiferayFilter>, CreateOp, UpdateOp, DeleteOp {
+public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfiguration> implements TestOp, SchemaOp, SearchOp<String>, CreateOp, UpdateOp, DeleteOp {
 
   private static final Log LOG = Log.getLog(LiferayRestConnector.class);
 
@@ -250,19 +251,19 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
 	}
 
   @Override
-  public void executeQuery(ObjectClass oc, LiferayFilter filter, ResultsHandler handler, OperationOptions oo) {
-
-        LOG.ok(">>> executeQuery ObjectClass {0}", oc);
-        LOG.ok(">>> executeQuery LiferayFilter {0}", filter);
-        LOG.ok(">>> executeQuery ResultsHandler {0}", handler);
-        LOG.ok(">>> executeQuery OperationOptions {0}", oo);
+  public void executeQuery(ObjectClass oc, String filter, ResultsHandler handler, OperationOptions oo) {
+    LOG.ok(">>> executeQuery ObjectClass {0}", oc);
+    LOG.ok(">>> executeQuery String Filter {0}", filter);
+    LOG.ok(">>> executeQuery ResultsHandler {0}", handler);
+    LOG.ok(">>> executeQuery OperationOptions {0}", oo);
 
     if (oc.is(ACCOUNT_OBJECT_CLASS)) {
       try{
         JSONArray users = new JSONArray();
+        int searchResultCount = new Integer(getCompanyUsersCount());
 
         if(filter != null) {
-          Uid uid = new Uid(filter.byUid);
+          Uid uid = new Uid(filter);
           users.put(getUserById(uid, true));
         } else {
           HttpPost request = new HttpPost(getURIBuilder().build());
@@ -275,7 +276,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
             params.put("end", oo.getPagedResultsOffset() + oo.getPageSize());
           } else {
             params.put("start", 0);
-            params.put("end", getCompanyUsersCount());
+            params.put("end", searchResultCount);
           }
 
           cmd.put("/user/get-company-users", params);
@@ -332,7 +333,6 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           addJSONAddr(builder, u, "uuid");
 
           if(allowPartialAttribute(oo) == false) {
-            LOG.ok(">>> executeQuery LOAD PARTIALS YES!!!");
             builder.addAttribute("roleIds", getUserRoleIds(uid));
             builder.addAttribute("userGroupIds", getUserGroupIds(uid));
           }
@@ -340,12 +340,11 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           handler.handle(builder.build());
         }
 
-        // NOT WORKING YET
-        // if (handler instanceof SearchResultsHandler) {
-        //   LOG.ok(">>> executeQuery it is SearchResultsHandler class");
-        //   SearchResult searchResult = new SearchResult(null, new Integer(getCompanyUsersCount()));
-        //   ((SearchResultsHandler) handler).handleResult(searchResult);
-        // }
+        if (handler instanceof SearchResultsHandler) {
+          LOG.ok(">>> executeQuery it is SearchResultsHandler class");
+          SearchResult searchResult = new SearchResult(null, searchResultCount);
+          ((SearchResultsHandler) handler).handleResult(searchResult);
+        }
 
         LOG.ok(">>> executeQuery finished");
       } catch (Exception e) {
@@ -357,9 +356,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     if (oc.is(ROLE_OBJECT_CLASS)) {
       try{
         JSONArray roles = new JSONArray();
+        int searchResultCount = 0;
 
         if(filter != null) {
-          Uid uid = new Uid(filter.byUid);
+          Uid uid = new Uid(filter);
           roles.put(getRoleById(uid));
         } else {
           HttpPost request = new HttpPost(getURIBuilder().build());
@@ -372,6 +372,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           request.setEntity(new StringEntity(cmd.toString(), "UTF-8"));
           CloseableHttpResponse response = getHttpClient().execute(request);
           roles = new JSONArray(EntityUtils.toString(response.getEntity()));
+          searchResultCount = roles.length();
 
           if(oo.getPageSize() != null) {
             int start = oo.getPagedResultsOffset() - 1;
@@ -414,6 +415,13 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           addJSONAddr(builder, u, "createDate");
           handler.handle(builder.build());
         }
+
+        if (handler instanceof SearchResultsHandler) {
+          LOG.ok(">>> executeQuery it is SearchResultsHandler class");
+          SearchResult searchResult = new SearchResult(null, searchResultCount);
+          ((SearchResultsHandler) handler).handleResult(searchResult);
+        }
+
         LOG.ok(">>> executeQuery finished");
       } catch (Exception e) {
         throw new IllegalArgumentException(e.getMessage(), e);
@@ -423,9 +431,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     if (oc.is(USERGROUP_OBJECT_CLASS)) {
       try{
         JSONArray usergroups = new JSONArray();
+        int searchResultCount = 0;
 
         if(filter != null) {
-          Uid uid = new Uid(filter.byUid);
+          Uid uid = new Uid(filter);
           usergroups.put(getUserGroupById(uid));
         } else {
           HttpPost request = new HttpPost(getURIBuilder().build());
@@ -438,6 +447,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           CloseableHttpResponse response = getHttpClient().execute(request);
           LOG.ok(">>> executeQuery usergroup response.getEntity {0}", response.getEntity());
           usergroups = new JSONArray(EntityUtils.toString(response.getEntity()));
+          searchResultCount = usergroups.length();
           processResponseErrors(response);
         }
 
@@ -461,6 +471,13 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           addJSONAddr(builder, u, "uuid");
           handler.handle(builder.build());
         }
+
+        if (handler instanceof SearchResultsHandler) {
+          LOG.ok(">>> executeQuery it is SearchResultsHandler class");
+          SearchResult searchResult = new SearchResult(null, searchResultCount);
+          ((SearchResultsHandler) handler).handleResult(searchResult);
+        }
+
         LOG.ok(">>> executeQuery finished");
       } catch (Exception e) {
         throw new IllegalArgumentException(e.getMessage(), e);
@@ -470,9 +487,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     if (oc.is(WEBSITE_OBJECT_CLASS)) {
       try{
         JSONArray websites = new JSONArray();
+        int searchResultCount = 0;
 
         if(filter != null) {
-          Uid uid = new Uid(filter.byUid);
+          Uid uid = new Uid(filter);
           websites.put(getWebsiteById(uid));
         } else {
           HttpPost request = new HttpPost(getURIBuilder().build());
@@ -486,6 +504,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           CloseableHttpResponse response = getHttpClient().execute(request);
           LOG.ok(">>> executeQuery website response.getEntity {0}", response.getEntity());
           websites = new JSONArray(EntityUtils.toString(response.getEntity()));
+          searchResultCount = websites.length();
           processResponseErrors(response);
         }
 
@@ -497,6 +516,13 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           addJSONAddr(builder, u, "websiteId");
           handler.handle(builder.build());
         }
+
+        if (handler instanceof SearchResultsHandler) {
+          LOG.ok(">>> executeQuery it is SearchResultsHandler class");
+          SearchResult searchResult = new SearchResult(null, searchResultCount);
+          ((SearchResultsHandler) handler).handleResult(searchResult);
+        }
+
         LOG.ok(">>> executeQuery finished");
       } catch (Exception e) {
         throw new IllegalArgumentException(e.getMessage(), e);
@@ -506,9 +532,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     if (oc.is(ORGANIZATION_OBJECT_CLASS)) {
       try{
         JSONArray organizations = new JSONArray();
+        int searchResultCount = 0;
 
         if(filter != null) {
-          Uid uid = new Uid(filter.byUid);
+          Uid uid = new Uid(filter);
           organizations.put(getOrganizationById(uid));
         } else {
           HttpPost request = new HttpPost(getURIBuilder().build());
@@ -522,6 +549,7 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           CloseableHttpResponse response = getHttpClient().execute(request);
           LOG.ok(">>> executeQuery organization response.getEntity {0}", response.getEntity());
           organizations = new JSONArray(EntityUtils.toString(response.getEntity()));
+          searchResultCount = organizations.length();
           processResponseErrors(response);
         }
 
@@ -551,6 +579,13 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
           addJSONAddr(builder, u, "uuid");
           handler.handle(builder.build());
         }
+
+        if (handler instanceof SearchResultsHandler) {
+          LOG.ok(">>> executeQuery it is SearchResultsHandler class");
+          SearchResult searchResult = new SearchResult(null, searchResultCount);
+          ((SearchResultsHandler) handler).handleResult(searchResult);
+        }
+
         LOG.ok(">>> executeQuery finished");
       } catch (Exception e) {
         throw new IllegalArgumentException(e.getMessage(), e);
@@ -559,10 +594,10 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
   }
 
   @Override
-  public LiferayFilterTranslator createFilterTranslator(ObjectClass oc, OperationOptions oo) {
-        LOG.ok(">>> createFilterTranslator ObjectClass {0}", oc);
-        LOG.ok(">>> createFilterTranslator OperationOptions {0}", oo);
-  		return new LiferayFilterTranslator();
+  public FilterTranslator<String> createFilterTranslator(ObjectClass oc, OperationOptions oo) {
+    LOG.ok(">>> createFilterTranslator ObjectClass {0}", oc);
+    LOG.ok(">>> createFilterTranslator OperationOptions {0}", oo);
+    return new LiferayFilterTranslator();
   }
 
   @Override
