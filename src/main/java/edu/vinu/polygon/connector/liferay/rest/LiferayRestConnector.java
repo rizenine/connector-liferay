@@ -912,8 +912,8 @@ public class LiferayRestConnector extends AbstractRestConnector<LiferayRestConfi
     params.put("jobTitle", getStringAttr(attrs, "jobTitle", ""));
     params.put("groupIds", JSONObject.NULL);
     params.put("organizationIds", JSONObject.NULL);
-    params.put("roleIds",  getMultiValAttrJSON(attrs, "roleIds", null));
-    params.put("userGroupIds",  getMultiValAttrJSON(attrs, "userGroupIds", null));
+    params.put("roleIds",  getMultiValAttrJSON(attrs, "roleIds", new JSONArray()));
+    params.put("userGroupIds",  getMultiValAttrJSON(attrs, "userGroupIds", new JSONArray()));
     params.put("sendEmail", getAttr(attrs, "sendEmail", Boolean.class, false));
     cmd.put("/user/add-user", params);
     LOG.ok(">>> addUser JSON {0}", cmd.toString());
